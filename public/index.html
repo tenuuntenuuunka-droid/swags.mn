@@ -2271,8 +2271,8 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
           </div>
           <p class="cc-warn" id="ccWarn"><span id="ccWarnText">Кланы профайлд Discord хаягаа харуулахын тулд холбоно уу.</span> <button class="btn line" type="button" data-discord-open>Discord холбох →</button></p>
           <div class="cc-card" id="ccOwnerForm" style="display:none;margin:20px 0">
-            <h3>Клан нээх · Owner</h3>
-            <p>Зөвхөн Owner role-той хүнд харагдана.</p>
+            <h3>Клан нээх · SWAG / Owner</h3>
+            <p>Зөвхөн SWAG эсвэл Owner role-той хүнд харагдана.</p>
             <div style="display:grid;gap:10px;max-width:420px">
               <input id="ccoName" type="text" maxlength="24" placeholder="Кланы нэр (2-24 тэмдэгт)">
               <input id="ccoTag" type="text" maxlength="7" placeholder="Тэмдэг (3-7 үсэг/тоо, жишээ NMD)">
@@ -3295,7 +3295,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var banSrc = own ? pfCustom.banner : oBase + 'banner&id=' + u.id;
     var h = '<div class="pf-hero"><div class="pf-ban">' + (banSrc ? '<img class="pf-bimg" src="' + esc(banSrc) + '" alt=""' + (own ? '' : ' onerror="this.remove()"') + '>' : '') + edit + '</div><div class="pf-top"><div class="pf-av">' + av + (own ? '<button type="button" class="pf-avedit" data-pf="av">Зураг солих</button>' : '') + '</div><div class="pf-id"><div class="pf-nm"><h2>' + esc(u.name) + '</h2>' + (rt ? '<div class="pf-rk">' + rankImgs(rt) + '<div><b>' + esc(dd.name) + '</b><span>Rating ' + rt.toLocaleString('en-US') + '</span></div></div>' : '') + '</div><div class="pf-chips">' +
       '<span class="pf-chip">SteamID ' + esc(u.id || '—') + '</span>' + (u.profileUrl ? '<a class="pf-chip" href="' + esc(u.profileUrl) + '" target="_blank" rel="noopener">Steam профайл ↗</a>' : '') +
-      (u.staff ? '<span class="pf-chip" style="color:#35d0ba;border-color:rgba(53,208,186,.5)">★ ' + esc(u.staff.charAt(0).toUpperCase() + u.staff.slice(1)) + '</span>' : '') + (u.place ? '<span class="pf-chip ok">Global #' + u.place + (u.players ? ' / ' + u.players : '') + '</span>' : '') +
+      (u.staff ? '<span class="pf-chip" style="color:#35d0ba;border-color:rgba(53,208,186,.5)">★ ' + esc(u.staff === 'swag' ? 'SWAG' : u.staff.charAt(0).toUpperCase() + u.staff.slice(1)) + '</span>' : '') + (u.place ? '<span class="pf-chip ok">Global #' + u.place + (u.players ? ' / ' + u.players : '') + '</span>' : '') +
       '<span class="pf-chip">' + (st && st.last ? 'Сүүлд: ' + esc(st.last) : (rt ? 'Серверт тоглосон' : (own ? 'Серверт тоглоогүй' : 'Мэдээлэл алга'))) + '</span></div></div>' +
       '</div></div>' + (own ? '<p class="pf-note">Баннер, профайл зурагт PNG, JPG, WEBP болон GIF (4MB хүртэл) оруулж болно.</p>' : '');
     h += discordProfile(u.discord, own, u.discord_status);
@@ -3609,10 +3609,10 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     if (b) openClan(b.getAttribute('data-clan'));
   });
   /* ---------- Owner: клан нээх ---------- */
-  function ownerClanUI() { var f = $('ccOwnerForm'); if (f) f.style.display = (steamUser && steamUser.staff === 'owner') ? '' : 'none'; }
+  function ownerClanUI() { var f = $('ccOwnerForm'); if (f) f.style.display = (steamUser && ['swag', 'owner'].indexOf(steamUser.staff) > -1) ? '' : 'none'; }
   ownerClanUI();
   if ($('ccoSubmit')) $('ccoSubmit').addEventListener('click', function () {
-    var msg = $('ccoMsg'), errs = { not_logged_in: 'Steam-ээр нэвтэрнэ үү', owner_only: 'Зөвхөн Owner role нээж чадна', name_short: 'Нэр хэт богино', bad_tag: 'Тэмдэг 3-7 латин үсэг/тоо байх ёстой', duplicate: 'Нэр эсвэл тэмдэг давхцаж байна', storage_unavailable: 'Netlify Blobs идэвхгүй байна' };
+    var msg = $('ccoMsg'), errs = { not_logged_in: 'Steam-ээр нэвтэрнэ үү', owner_only: 'Зөвхөн SWAG эсвэл Owner role нээж чадна', name_short: 'Нэр хэт богино', bad_tag: 'Тэмдэг 3-7 латин үсэг/тоо байх ёстой', duplicate: 'Нэр эсвэл тэмдэг давхцаж байна', storage_unavailable: 'Netlify Blobs идэвхгүй байна' };
     msg.textContent = '...';
     fetch('/api/clans', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: $('ccoName').value, tag: $('ccoTag').value, motto: $('ccoMotto').value, color: $('ccoColor').value, ownerId: $('ccoOwner').value.trim() }) })
@@ -3644,7 +3644,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   var API_ERR = { already_member: 'Та аль хэдийн гишүүн', already_requested: 'Хүсэлт өмнө нь илгээгдсэн', forbidden: 'Эрх хүрэхгүй', bad_id: 'Steam ID буруу', cant_remove_leader: 'Ахлагчийг хасч болохгүй' };
   function canManage(c) {
     if (!steamUser) return false; var id = String(steamUser.id || '');
-    return steamUser.staff === 'owner' || (c.ownerId && String(c.ownerId) === id);
+    return ['swag', 'owner'].indexOf(steamUser.staff) > -1 || (c.ownerId && String(c.ownerId) === id);
   }
   function manageDo(body, done) {
     clanApi(Object.assign({ tag: curClan.tag }, body)).then(function (x) {
@@ -3653,7 +3653,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   }
   function renderManage(c) {
     var box = $('cdManage'); box.hidden = !canManage(c); box.style.display = canManage(c) ? 'block' : 'none';
-    $('cdDelClan').hidden = !(steamUser && steamUser.staff === 'owner');
+    $('cdDelClan').hidden = !(steamUser && ['swag', 'owner'].indexOf(steamUser.staff) > -1);
     $('cdMem').innerHTML = (c.mem || []).length ? '<b style="display:block;margin-top:8px">Гишүүд (' + c.mem.length + ')</b>' + c.mem.map(function (m) {
       return '<div style="display:flex;gap:10px;align-items:center;padding:5px 0">' + avatarHtml(m.name, m.avatar, 28) + '<span style="flex:1">' + esc(m.name) + (String(m.id) === String(c.ownerId) ? ' ★' : '') + discordBadge(m.discord) + '</span>' + (String(m.id) === String(c.ownerId) ? '' : '<button class="btn line" type="button" data-rm="' + esc(m.id) + '">Хасах</button>') + '</div>';
     }).join('') : '';
@@ -4931,6 +4931,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
 <script>
 (function () {
   var ROLES = [
+    { k: 'swag', n: 'SWAG', c: '#b56cff' },
     { k: 'owner', n: 'Owner', c: '#ffd23f' }, { k: 'coowner', n: 'Co-Owner', c: '#ff7a3d' },
     { k: 'founder', n: 'Founder', c: '#ffa51f' }, { k: 'manager', n: 'Manager', c: '#c58bff' },
     { k: 'moderator', n: 'Moderator', c: '#9d00ff' }, { k: 'boss', n: 'Boss', c: '#ff5a7a' },
@@ -4939,11 +4940,11 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   var DEMO = [['Owner One','owner'],['Founder One','founder'],['Co-Owner One','coowner'],['Manager One','manager'],['Admin One','admin'],['Moderator One','moderator'],['Boss One','boss'],['VIP One','vip']]
     .map(function (d, i) { return { id: 'demo' + i, name: d[0], avatar: '', role: d[1] }; });
   var data = { members: [], demo: false, loading: true }, filter = 'all', q = '';
-  var meU = null, isOwner = false, supOwners = [], rcRole = 'moderator', rcMsg = null;
+  var meU = null, isOwner = false, assignableRoles = [], lockedUsers = [], rcRole = 'moderator', rcMsg = null;
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function role(k) { return ROLES.filter(function (r) { return r.k === k; })[0]; }
-  var SIZE = { owner: [11, 130, 96, 34], coowner: [9.5, 112, 80, 28], founder: [9.5, 112, 80, 28], manager: [8, 92, 64, 24], moderator: [7, 80, 56, 22], boss: [6.2, 68, 48, 20], vip: [6.2, 68, 48, 20], admin: [6.2, 68, 48, 20] };
+  var SIZE = { swag: [11.5, 138, 100, 36], owner: [11, 130, 96, 34], coowner: [9.5, 112, 80, 28], founder: [9.5, 112, 80, 28], manager: [8, 92, 64, 24], moderator: [7, 80, 56, 22], boss: [6.2, 68, 48, 20], vip: [6.2, 68, 48, 20], admin: [6.2, 68, 48, 20] };
   function card(m) {
     var r = role(m.role), ini = esc((m.name.replace(/[^\p{L}\p{N}]/gu, '').charAt(0) || '?').toUpperCase());
     return '<div class="tm-card' + (/^\d{17}$/.test(m.id) ? ' tm-link' : '') + '" data-pid="' + esc(m.id) + '" style="--c:' + r.c + '"' + (/^\d{17}$/.test(m.id) ? ' tabindex="0" role="button" aria-label="' + esc(m.name) + ' профайл харах"' : '') + '><div class="tm-av">' + ini +
@@ -4952,14 +4953,13 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   }
   function ctl(m) {
     if (!isOwner || !/^\d{17}$/.test(m.id)) return '';
-    if (supOwners.indexOf(m.id) > -1 || (meU && m.id === meU.id)) return '<div class="tm-ctl"><span class="tm-lock">🔒 ' + (meU && m.id === meU.id ? 'you' : 'locked') + '</span></div>';
-    var canOwner = meU && supOwners.indexOf(meU.id) > -1;
-    if (m.role === 'owner' && !canOwner) return '<div class="tm-ctl"><span class="tm-lock">🔒 owner</span></div>';
-    return '<div class="tm-ctl" data-id="' + m.id + '"><select data-set aria-label="Role солих">' + ROLES.filter(function (r) { return r.k !== 'owner' || canOwner; }).map(function (r) {
+    if (lockedUsers.indexOf(m.id) > -1 || (meU && m.id === meU.id)) return '<div class="tm-ctl"><span class="tm-lock">🔒 ' + (meU && m.id === meU.id ? 'you' : 'locked') + '</span></div>';
+    if (assignableRoles.indexOf(m.role) < 0) return '<div class="tm-ctl"><span class="tm-lock">🔒 ' + esc(m.role.toUpperCase()) + '</span></div>';
+    return '<div class="tm-ctl" data-id="' + m.id + '"><select data-set aria-label="Role солих">' + ROLES.filter(function (r) { return assignableRoles.indexOf(r.k) > -1; }).map(function (r) {
       return '<option value="' + r.k + '"' + (r.k === m.role ? ' selected' : '') + '>' + r.n + '</option>'; }).join('') + '</select><button type="button" data-rm title="Хасах" aria-label="Staff-аас хасах">✕</button></div>';
   }
   function say(t, kind) { rcMsg = t ? { t: t, k: kind } : null; var el = $('rcMsg'); if (el) { el.textContent = t || ''; el.className = 'rc-msg ' + (kind || ''); } }
-  var ERR = { not_logged_in: 'Steam-ээр нэвтэрнэ үү', owner_only: 'Зөвхөн Owner role-той хүн өөрчилж чадна', bad_id: 'Steam ID буруу (17 оронтой тоо эсвэл steamcommunity.com/profiles/… холбоос)', bad_role: 'Role буруу', locked_owner: 'Энэ Owner-ийг өөрчлөх боломжгүй', self: 'Өөрийн role-оо өөрчлөх боломжгүй', super_owner_only: 'Owner role-ыг зөвхөн үндсэн Owner өөрчилнө', storage_unavailable: 'Хадгалалт (Netlify Blobs) ажиллахгүй байна' };
+  var ERR = { not_logged_in: 'Steam-ээр нэвтэрнэ үү', owner_only: 'Зөвхөн SWAG эсвэл Owner role-той хүн өөрчилж чадна', bad_id: 'Steam ID буруу (17 оронтой тоо эсвэл steamcommunity.com/profiles/… холбоос)', bad_role: 'Role буруу', locked_owner: 'Энэ Owner-ийг зөвхөн SWAG өөрчилнө', locked_swag: 'Үндсэн SWAG хаяг хамгаалагдсан', swag_only: 'SWAG role-ыг зөвхөн SWAG удирдана', self: 'Өөрийн role-оо өөрчлөх боломжгүй', super_owner_only: 'Owner role-ыг SWAG эсвэл үндсэн Owner өөрчилнө', storage_unavailable: 'Хадгалалт (Netlify Blobs) ажиллахгүй байна' };
   function api(method, body, qs) {
     return fetch('/api/staff' + (qs || ''), { method: method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Swag-Csrf': meU && meU.csrf || '' }, body: body ? JSON.stringify(body) : undefined })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(ERR[j.error] || j.error || ('HTTP ' + r.status)); return j; }); });
@@ -4971,12 +4971,11 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     if (!isOwner) { box.hidden = true; return; }
     if (box.getAttribute('data-ready') === '1') { return; }
     box.setAttribute('data-ready', '1'); box.hidden = false;
-    var canOwner = meU && supOwners.indexOf(meU.id) > -1;
-    box.innerHTML = '<div class="rc-h"><i></i>Role Console · Owner</div><p class="rc-sub">Staff-д role өгөх, солих, хасах — шууд сайтаас. Steam ID эсвэл профайл холбоосоор.</p>' +
+    box.innerHTML = '<div class="rc-h"><i></i>Role Console · ' + (meU.staff === 'swag' ? 'SWAG' : 'Owner') + '</div><p class="rc-sub">Staff-д role өгөх, солих, хасах — шууд сайтаас. Steam ID эсвэл профайл холбоосоор.</p>' +
       '<form class="rc-form" id="rcForm" autocomplete="off"><input class="rc-in" id="rcId" placeholder="Steam ID эсвэл steamcommunity.com/profiles/7656119…" inputmode="numeric" aria-label="Steam ID">' +
       '<button class="rc-go" id="rcGo" type="submit">Role өгөх</button><div class="rc-pills" id="rcPills"></div></form><p class="rc-msg" id="rcMsg" role="status"></p>';
     function pills() {
-      $('rcPills').innerHTML = ROLES.filter(function (r) { return r.k !== 'owner' || canOwner; }).map(function (r) {
+      $('rcPills').innerHTML = ROLES.filter(function (r) { return assignableRoles.indexOf(r.k) > -1; }).map(function (r) {
         return '<button type="button" class="rc-pill" data-rc="' + r.k + '" style="--c:' + r.c + '" aria-pressed="' + (rcRole === r.k) + '">' + r.n + '</button>'; }).join('');
     }
     pills();
@@ -5012,8 +5011,10 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   });
   function initOwner() {
     fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
-      meU = u; isOwner = !!u && u.staff === 'owner'; if (!isOwner) { var bx = $('tmAdmin'); if (bx) bx.removeAttribute('data-ready'); adminPanel(); render(); return; }
-      return api('GET').then(function (j) { supOwners = j.superOwners || []; }).catch(function () {}).then(function () { adminPanel(); render(); });
+      meU = u; isOwner = !!u && ['swag', 'owner'].indexOf(u.staff) > -1;
+      var bx = $('tmAdmin'); if (bx) bx.removeAttribute('data-ready');
+      if (!isOwner) { assignableRoles = []; lockedUsers = []; adminPanel(); render(); return; }
+      return api('GET').then(function (j) { assignableRoles = j.assignableRoles || []; lockedUsers = j.lockedUsers || []; }).catch(function () { isOwner = false; assignableRoles = []; lockedUsers = []; }).then(function () { adminPanel(); render(); });
     }).catch(function () {});
   }
   function render() {
@@ -5021,7 +5022,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     all.forEach(function (m) { counts[m.role] = (counts[m.role] || 0) + 1; });
     $('tmStats').innerHTML = '<span><b>' + all.length + '</b>operators</span>' +
       ROLES.filter(function (r) { return counts[r.k]; }).slice(0, 3).map(function (r) { return '<span style="--sc:' + r.c + '"><b>' + counts[r.k] + '</b>' + r.n + '</span>'; }).join('');
-    $('tmNote').textContent = data.loading ? 'Ачаалж байна...' : data.demo ? 'DEMO: Discord холбогдоогүй байна. DISCORD_BOT_TOKEN болон DISCORD_GUILD_ID тохируулбал бодит role-той хүмүүс автоматаар гарна.' : data.error ? 'Discord-оос мэдээлэл авч чадсангүй. Түр хүлээгээд дахин оролдоно уу.' : (isOwner ? 'Owner горим: картан дээрх role-ыг солих эсвэл ✕-ээр хасах боломжтой.' : 'Staff жагсаалт сайтаас удирдагддаг.');
+    $('tmNote').textContent = data.loading ? 'Ачаалж байна...' : data.demo ? 'DEMO: Discord холбогдоогүй байна. DISCORD_BOT_TOKEN болон DISCORD_GUILD_ID тохируулбал бодит role-той хүмүүс автоматаар гарна.' : data.error ? 'Discord-оос мэдээлэл авч чадсангүй. Түр хүлээгээд дахин оролдоно уу.' : (isOwner ? (meU.staff === 'swag' ? 'SWAG' : 'Owner') + ' горим: картан дээрх role-ыг солих эсвэл ✕-ээр хасах боломжтой.' : 'Staff жагсаалт сайтаас удирдагддаг.');
     $('tmBar').innerHTML = '<button type="button" class="tm-chip" data-f="all" aria-pressed="' + (filter === 'all') + '">All <span>' + all.length + '</span></button>' +
       ROLES.filter(function (r) { return counts[r.k]; }).map(function (r) {
         return '<button type="button" class="tm-chip" data-f="' + r.k + '" style="--c:' + r.c + '" aria-pressed="' + (filter === r.k) + '"><i></i>' + r.n + ' <span>' + counts[r.k] + '</span></button>';
