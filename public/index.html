@@ -1974,6 +1974,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
 .dc-message { font-size: 14px; line-height: 1.6; color: #dcc7ff; }
 .dc-note { font-size: 12px; margin-bottom: 0; }
 .dc-profile p { color: #b5a8c8; line-height: 1.6; }
+.discord-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; box-sizing: border-box; gap: 5px; padding: 4px 9px; border: 1px solid #717cff66; border-radius: 8px; background: #5865f21a; color: #c5caff; font: 600 12px/1.4 var(--font-body, sans-serif); overflow-wrap: anywhere; }
+.identity-name { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.dc-person { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: #c5caff; margin: 14px 0 18px; font-size: 13px; }
+.dc-profile > .btn { margin-top: 8px; }
+.tm-nm .discord-badge { margin-top: 6px; font-size: 11px; }
+#cdMem .discord-badge, #cdReq .discord-badge { display: flex; margin-top: 4px; }
+.lb-pl { flex-wrap: wrap; }
+.lpc > .discord-badge { margin: 7px auto; }
 .dci[data-discord-open] { background: transparent; border: 0; padding: 0; cursor: pointer; font: inherit; }
 .dci[data-discord-open]:focus-visible { outline: 2px solid #c99dff; outline-offset: 4px; }
 @media(max-width:540px) { .dc-dialog { padding: 26px 22px; } .dc-dialog h3 { font-size: 23px; } }
@@ -2261,7 +2269,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
             <div id="ccDiscord"><i>·</i><span><b>Discord</b><small>Холбох шаардлагатай</small></span></div>
             <div class="ok"><i>✓</i><span><b>Бүртгэлтэй клан</b><small id="ccCount">0</small></span></div>
           </div>
-          <p class="cc-warn" id="ccWarn">Кланы Discord role таны хаяг дээр үүсэх тул эхлээд Discord-оо холбоно уу. <a href="https://discord.gg/cWGRbxs68" target="_blank" rel="noopener noreferrer">Холбох →</a></p>
+          <p class="cc-warn" id="ccWarn"><span id="ccWarnText">Кланы профайлд Discord хаягаа харуулахын тулд холбоно уу.</span> <button class="btn line" type="button" data-discord-open>Discord холбох →</button></p>
           <div class="cc-card" id="ccOwnerForm" style="display:none;margin:20px 0">
             <h3>Клан нээх · Owner</h3>
             <p>Зөвхөн Owner role-той хүнд харагдана.</p>
@@ -2602,12 +2610,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     <div class="pop-body">
       <b id="popName"></b>
       <span class="meta" id="popId"></span>
+      <span class="meta" id="popDiscord"></span>
+      <span class="meta" id="popRole"></span>
       <a class="meta" id="popLink" href="#" target="_blank" rel="noopener" hidden>Steam профайл ↗</a>
     </div>
   </div>
   <div id="popRank"></div>
   <div class="pop-act">
-    <button class="btn line" type="button" data-discord-open>Discord холбох</button>
+    <button class="btn line" type="button" data-discord-open id="popDiscordAction">Discord холбох</button>
     <button class="btn" type="button" id="popPf">Профайл</button>
     <button class="btn line" type="button" id="popOut">Гарах</button>
   </div>
@@ -3041,6 +3051,18 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     else { el.textContent = u && u.name ? u.name.charAt(0).toUpperCase() : '?'; }
   }
   function closePop() { $('pop').hidden = true; $('profBtn').setAttribute('aria-expanded', 'false'); }
+  /* Discord identity helpers */
+  function discordBadge(account) {
+    if (!account || !/^\d{17,20}$/.test(String(account.id || '')) || typeof account.username !== 'string') return '';
+    return '<span class="discord-badge">Discord · ' + esc(account.username) + '</span>';
+  }
+  function discordProfile(account, own, status) {
+    var badge = discordBadge(account), text = badge ? '<a class="dc-person" href="https://discord.com/users/' + account.id + '" target="_blank" rel="noopener noreferrer">' + badge + '<span>Discord профайл ↗</span></a>' :
+      '<p>' + (status === 'unavailable' ? 'Discord мэдээллийг түр уншиж чадсангүй.' : 'Discord хаяг холбоогүй байна.') + '</p>';
+    return '<div class="pf-sec dc-profile"><h3>Discord</h3>' + text + (own ? '<button class="btn line" type="button" data-discord-open>' + (badge ? 'Холболт удирдах' : 'Discord холбох') + '</button>' : '') + '</div>';
+  }
+  window.swagDiscordBadge = discordBadge;
+  /* /Discord identity helpers */
   function renderSteam() {
     var on = !!steamUser;
     $('steamBtn').hidden = on; $('profBtn').hidden = !on;
@@ -3048,6 +3070,9 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       setAv($('profAv'), steamUser); $('profName').textContent = steamUser.name;
       setAv($('popAv'), steamUser); $('popName').textContent = steamUser.name;
       $('popId').textContent = 'SteamID: ' + (steamUser.id || '—');
+      $('popDiscord').textContent = steamUser.discord ? 'Discord · ' + steamUser.discord.username : '';
+      $('popRole').textContent = steamUser.staff ? 'Website · ' + steamUser.staff.toUpperCase() : '';
+      $('popDiscordAction').textContent = steamUser.discord ? 'Discord · ' + steamUser.discord.username : 'Discord холбох';
       var pl = $('popLink'); if (steamUser.profileUrl) { pl.href = steamUser.profileUrl; pl.hidden = false; } else pl.hidden = true;
       var rt = +steamUser.rating || 0, pr = $('popRank');
       pr.style.cssText = '';
@@ -3060,6 +3085,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     $('admSteam').textContent = on ? 'Нэвтэрсэн · ' + steamUser.name : 'Нэвтрээгүй';
     var cn = $('clanNote'); if (cn) cn.innerHTML = on ? '<b>Тавтай морил, ' + esc(steamUser.name) + '.</b> Та одоогоор клангүй байна. Урилга хүсэх эсвэл өөрийн клан нээнэ үү.' : '<b>Анхаар:</b> клан удирдах эсвэл урилгад хариулахын тулд Steam-ээр нэвтэрнэ үү.';
     var cs=$('ccSteam'); if (cs) { cs.className = on ? 'ok' : ''; cs.querySelector('i').textContent = on ? '✓' : '·'; cs.querySelector('small').textContent = on ? 'Нэвтэрсэн' : 'Нэвтрээгүй'; }
+    var dc = $('ccDiscord'), linked = on && !!steamUser.discord, unavailable = on && steamUser.discord_status === 'unavailable';
+    if (dc) {
+      dc.className = linked ? 'ok' : '';
+      dc.querySelector('i').textContent = linked ? '✓' : '·';
+      dc.querySelector('small').textContent = linked ? steamUser.discord.username : unavailable ? 'Түр боломжгүй' : 'Холбох шаардлагатай';
+    }
+    if ($('ccWarn')) $('ccWarn').hidden = !!linked;
+    if ($('ccWarnText')) $('ccWarnText').textContent = unavailable ? 'Discord холболтыг шалгаж чадсангүй. Дахин оролдоно уу.' : 'Кланы профайлд Discord хаягаа харуулахын тулд холбоно уу.';
     renderRankMe(); renderProfilePage();
   }
   var CMDS = {
@@ -3165,9 +3198,10 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   setInterval(function () {
     if (!steamUser || document.hidden) return;
     fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
-      if (u && u.name && (u.staff || '') !== (steamUser.staff || '')) {
-        finishLogin(u);
-        toast(u.staff ? 'Танд ' + u.staff.toUpperCase() + ' role олгогдлоо' : 'Таны staff role хасагдлаа');
+      if (u && u.name) {
+        var roleChanged = (u.staff || '') !== (steamUser.staff || '');
+        if (roleChanged || JSON.stringify(u.discord) !== JSON.stringify(steamUser.discord) || u.discord_status !== steamUser.discord_status) finishLogin(u);
+        if (roleChanged) toast(u.staff ? 'Танд ' + u.staff.toUpperCase() + ' role олгогдлоо' : 'Таны staff role хасагдлаа');
       }
     }).catch(function () {});
   }, 15000);
@@ -3236,7 +3270,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       var a = b.getAttribute('data-pf');
       if (a === 'ban') pfPick('banner'); else if (a === 'av') pfPick('avatar');
       else if (a === 'banx') pfReset('banner'); else if (a === 'avx') pfReset('avatar');
-      else if (a === 'back') { var bk = pfView && pfView._from === 'staff' ? 'staff' : 'leaderboard'; pfView = null; var li = ids.indexOf(bk); if (li > -1) go(li); }
+      else if (a === 'back') { var bk = pfView && pfView._from === 'staff' ? 'staff' : pfView && pfView._from === 'clan' ? 'clans' : 'leaderboard'; pfView = null; var li = ids.indexOf(bk); if (li > -1) go(li); }
     });
   })();
   /* ---------- Профайл хуудас ---------- */
@@ -3257,14 +3291,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var u = U, rt = +u.rating || 0, st = u.stats, tc = rt ? tierOf(rt).c : '#9d00ff', dd = rt ? describe(rt) : null;
     root.style.setProperty('--tc', tc);
     var oBase = '/api/pfimg?kind=', avSrc = own ? (pfCustom.avatar || u.avatar) : oBase + 'avatar&id=' + u.id, av = avSrc ? '<img src="' + esc(avSrc) + '" alt=""' + (own ? '' : ' onerror="' + (u.avatar ? "this.onerror=null;this.src=\'" + esc(u.avatar) + "\'" : 'this.remove()') + '"') + '>' : esc((u.name || '?').charAt(0).toUpperCase());
-    var edit = own ? '<div class="pf-edit"><button type="button" data-pf="ban">Баннер солих</button>' + (pfCustom.banner ? '<button type="button" class="x" data-pf="banx" aria-label="Баннер арилгах">✕</button>' : '') + '</div>' : '<div class="pf-edit"><button type="button" data-pf="back">' + (pfView && pfView._from === 'staff' ? '← Staff' : '← Тэргүүлэгчид') + '</button></div>';
+    var edit = own ? '<div class="pf-edit"><button type="button" data-pf="ban">Баннер солих</button>' + (pfCustom.banner ? '<button type="button" class="x" data-pf="banx" aria-label="Баннер арилгах">✕</button>' : '') + '</div>' : '<div class="pf-edit"><button type="button" data-pf="back">' + (pfView && pfView._from === 'staff' ? '← Staff' : pfView && pfView._from === 'clan' ? '← Клан' : '← Тэргүүлэгчид') + '</button></div>';
     var banSrc = own ? pfCustom.banner : oBase + 'banner&id=' + u.id;
     var h = '<div class="pf-hero"><div class="pf-ban">' + (banSrc ? '<img class="pf-bimg" src="' + esc(banSrc) + '" alt=""' + (own ? '' : ' onerror="this.remove()"') + '>' : '') + edit + '</div><div class="pf-top"><div class="pf-av">' + av + (own ? '<button type="button" class="pf-avedit" data-pf="av">Зураг солих</button>' : '') + '</div><div class="pf-id"><div class="pf-nm"><h2>' + esc(u.name) + '</h2>' + (rt ? '<div class="pf-rk">' + rankImgs(rt) + '<div><b>' + esc(dd.name) + '</b><span>Rating ' + rt.toLocaleString('en-US') + '</span></div></div>' : '') + '</div><div class="pf-chips">' +
       '<span class="pf-chip">SteamID ' + esc(u.id || '—') + '</span>' + (u.profileUrl ? '<a class="pf-chip" href="' + esc(u.profileUrl) + '" target="_blank" rel="noopener">Steam профайл ↗</a>' : '') +
       (u.staff ? '<span class="pf-chip" style="color:#35d0ba;border-color:rgba(53,208,186,.5)">★ ' + esc(u.staff.charAt(0).toUpperCase() + u.staff.slice(1)) + '</span>' : '') + (u.place ? '<span class="pf-chip ok">Global #' + u.place + (u.players ? ' / ' + u.players : '') + '</span>' : '') +
       '<span class="pf-chip">' + (st && st.last ? 'Сүүлд: ' + esc(st.last) : (rt ? 'Серверт тоглосон' : (own ? 'Серверт тоглоогүй' : 'Мэдээлэл алга'))) + '</span></div></div>' +
       '</div></div>' + (own ? '<p class="pf-note">Баннер, профайл зурагт PNG, JPG, WEBP болон GIF (4MB хүртэл) оруулж болно.</p>' : '');
-    if (own) h += '<div class="pf-sec dc-profile"><h3>Discord</h3><p>Steam профайлаа Discord-той холбоод Owner-оос олгосон role-оо автоматаар аваарай.</p><button class="btn line" type="button" data-discord-open>Discord холбох / удирдах</button></div>';
+    h += discordProfile(u.discord, own, u.discord_status);
     if (!rt) {
       h += '<div class="pf-sec pf-empty"><b>Unranked</b>' + (own ? 'Та серверт тоглоогүй байна. Серверт тоглосны дараа таны rank, rating болон статистик энд гарна.' : 'Энэ тоглогч серверт тоглоогүй байна.') + '</div>';
       root.innerHTML = h; return;
@@ -3378,7 +3412,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   var clanBase = window.SWAG_CLANS || []; // клан үүсэх бүрт серверээс ирнэ (/api/clans.js)
   var clans = clanBase.map(function (b) {
     var m = [];
-    if (b[7] && b[7].length) b[7].forEach(function (x, i) { m.push([x.name, String(x.id) === String(b[6]) ? 'Ахлагч' : 'Гишүүн', 0, 0, x.avatar || '']); });
+    if (b[7] && b[7].length) b[7].forEach(function (x, i) { m.push([x.name, String(x.id) === String(b[6]) ? 'Ахлагч' : 'Гишүүн', 0, 0, x.avatar || '', x.id, x.discord || null]); });
     else for (var i = 0; i < b[5]; i++) m.push(['swag', i === 0 ? 'Ахлагч' : (i === 1 ? 'Офицер' : 'Гишүүн'), 0, 0]);
     return { tag: b[0], name: b[1], color: b[2], motto: b[3], founded: b[4], ownerId: b[6], mem: b[7] || [], wins: 0, losses: 0, members: m };
   });
@@ -3528,7 +3562,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     $('cdStats').innerHTML = [['Clan EXP', fmt(c.elo)], ['Rank', '#' + c.rank], ['Гишүүд', c.members.length], ['W – L', c.wins + ' – ' + c.losses], ['Win %', winPct(c) + '%'], ['Үүсгэсэн', c.founded]].map(tile).join('');
     $('cdForm').innerHTML = formDots(c) + '<span style="margin-left:10px">' + ((c.history || []).length ? '' : 'Одоогоор тулаан болоогүй.') + '</span>';
     $('cdBody').innerHTML = c.members.map(function (m) {
-      return '<tr><td><span style="display:flex;align-items:center;gap:10px">' + avatarHtml(m[0], m[4], 30) + '<b>' + esc(m[0]) + '</b></span></td><td><span style="padding:2px 10px;border-radius:999px;font-size:12px;background:' + (m[1] === 'Ахлагч' ? 'rgba(240,193,74,.18);color:#f0c14a' : 'rgba(255,255,255,.08)') + '">' + (m[1] === 'Ахлагч' ? '★ ' : '') + esc(m[1]) + '</span></td><td class="n">' + (m[2] ? '#' + m[2] : '—') + '</td><td class="n">' + fmt(m[3]) + '</td></tr>';
+      return '<tr><td><span style="display:flex;align-items:center;gap:10px">' + avatarHtml(m[0], m[4], 30) + '<span class="identity-name">' + (m[5] ? '<button class="lb-link" type="button" data-clan-player="' + esc(m[5]) + '">' + esc(m[0]) + '</button>' : '<b>' + esc(m[0]) + '</b>') + discordBadge(m[6]) + '</span></span></td><td><span style="padding:2px 10px;border-radius:999px;font-size:12px;background:' + (m[1] === 'Ахлагч' ? 'rgba(240,193,74,.18);color:#f0c14a' : 'rgba(255,255,255,.08)') + '">' + (m[1] === 'Ахлагч' ? '★ ' : '') + esc(m[1]) + '</span></td><td class="n">' + (m[2] ? '#' + m[2] : '—') + '</td><td class="n">' + fmt(m[3]) + '</td></tr>';
     }).join('');
     curClan = c;
     $('cdHead').setAttribute('data-bn', c.tag); applyBanners();
@@ -3537,6 +3571,24 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     if (!clanDlg.open) clanDlg.showModal();
   }
   var curClan = null;
+  $('cdBody').addEventListener('click', function (event) {
+    var button = event.target.closest('[data-clan-player]');
+    if (button) { clanDlg.close(); openPlayer(button.getAttribute('data-clan-player'), 'clan'); }
+  });
+  document.addEventListener('swag-discord', function (event) {
+    if (!steamUser || !event.detail) return;
+    var detail = event.detail;
+    steamUser.discord = detail.account || null;
+    steamUser.discord_status = detail.account ? 'linked' : detail.available ? 'unlinked' : 'unavailable';
+    try { localStorage.setItem('steamUser', JSON.stringify(steamUser)); } catch (_) {}
+    clans.forEach(function (c) {
+      (c.mem || []).forEach(function (member) { if (String(member.id) === String(steamUser.id)) member.discord = steamUser.discord; });
+      c.members.forEach(function (member) { if (String(member[5]) === String(steamUser.id)) member[6] = steamUser.discord; });
+    });
+    players.forEach(function (player) { if (String(player.steamid) === String(steamUser.id)) player.discord = steamUser.discord; });
+    renderSteam(); renderLb();
+    if (curClan && clanDlg.open) openClan(curClan.tag);
+  });
   $('cdBnUp').addEventListener('click', function () { $('cdBnFile').click(); });
   $('cdBnFile').addEventListener('change', function () {
     var f = this.files && this.files[0], c = curClan; this.value = '';
@@ -3580,7 +3632,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       var s = list.filter(function (x) { return x.tag === tag; })[0], c = clans.filter(function (x) { return x.tag === tag; })[0];
       if (!s || !c) { clanDlg.close(); location.reload(); return; }
       c.mem = s.members || [];
-      c.members = c.mem.map(function (x) { return [x.name, String(x.id) === String(c.ownerId) ? 'Ахлагч' : 'Гишүүн', 0, 0, x.avatar || '']; });
+      c.members = c.mem.map(function (x) { return [x.name, String(x.id) === String(c.ownerId) ? 'Ахлагч' : 'Гишүүн', 0, 0, x.avatar || '', x.id, x.discord || null]; });
       openClan(tag);
       if (typeof renderClans === 'function') renderClans();
     });
@@ -3603,14 +3655,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var box = $('cdManage'); box.hidden = !canManage(c); box.style.display = canManage(c) ? 'block' : 'none';
     $('cdDelClan').hidden = !(steamUser && steamUser.staff === 'owner');
     $('cdMem').innerHTML = (c.mem || []).length ? '<b style="display:block;margin-top:8px">Гишүүд (' + c.mem.length + ')</b>' + c.mem.map(function (m) {
-      return '<div style="display:flex;gap:10px;align-items:center;padding:5px 0">' + avatarHtml(m.name, m.avatar, 28) + '<span style="flex:1">' + esc(m.name) + (String(m.id) === String(c.ownerId) ? ' ★' : '') + '</span>' + (String(m.id) === String(c.ownerId) ? '' : '<button class="btn line" type="button" data-rm="' + esc(m.id) + '">Хасах</button>') + '</div>';
+      return '<div style="display:flex;gap:10px;align-items:center;padding:5px 0">' + avatarHtml(m.name, m.avatar, 28) + '<span style="flex:1">' + esc(m.name) + (String(m.id) === String(c.ownerId) ? ' ★' : '') + discordBadge(m.discord) + '</span>' + (String(m.id) === String(c.ownerId) ? '' : '<button class="btn line" type="button" data-rm="' + esc(m.id) + '">Хасах</button>') + '</div>';
     }).join('') : '';
     $('cdReq').innerHTML = '';
     if (!canManage(c)) return;
     fetch('/api/clans?tag=' + encodeURIComponent(c.tag), { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : { requests: [] }; }).then(function (j) {
       if (curClan !== c) return;
       $('cdReq').innerHTML = (j.requests || []).length ? '<b>Нэгдэх хүсэлт</b>' + j.requests.map(function (q) {
-        return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0">' + avatarHtml(q.name, q.avatar, 28) + '<span style="flex:1">' + esc(q.name) + '</span><button class="btn line" type="button" data-ap="' + esc(q.id) + '" style="background:#2ecc71;color:#06210f;border-color:#2ecc71">Авах</button><button class="btn line" type="button" data-rj="' + esc(q.id) + '">Татгалзах</button></div>';
+        return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0">' + avatarHtml(q.name, q.avatar, 28) + '<span style="flex:1">' + esc(q.name) + discordBadge(q.discord) + '</span><button class="btn line" type="button" data-ap="' + esc(q.id) + '" style="background:#2ecc71;color:#06210f;border-color:#2ecc71">Авах</button><button class="btn line" type="button" data-rj="' + esc(q.id) + '">Татгалзах</button></div>';
       }).join('') : '';
     });
   }
@@ -3973,14 +4025,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var view = q ? sorted.filter(function (p) { return String(p.name).toLowerCase().indexOf(q) !== -1; }) : sorted;
     $('lbPodium').innerHTML = sorted.slice(0, 3).map(function (p, i) {
       return '<div class="lpc' + (i === 0 ? ' first' : '') + '"' + (p.steamid ? ' data-sid="' + esc(p.steamid) + '" tabindex="0" role="button" style="cursor:pointer"' : '') + '><span class="lp-pos">' + (i + 1) + '-Р БАЙР</span>' + avatarOf(p, true) +
-        '<b>' + esc(p.name) + '</b><div class="lp-rank">' + fineBadge(p.exp) + '<span>' + esc(fineName(p.exp)) + ' · Level ' + Math.floor(p.exp / 10000) + ' · ' + fmt(p.exp) + ' EXP</span></div></div>';
+        '<b>' + esc(p.name) + '</b>' + discordBadge(p.discord) + '<div class="lp-rank">' + fineBadge(p.exp) + '<span>' + esc(fineName(p.exp)) + ' · Level ' + Math.floor(p.exp / 10000) + ' · ' + fmt(p.exp) + ' EXP</span></div></div>';
     }).join('');
     var pages = Math.max(1, Math.ceil(view.length / LB_SIZE));
     if (lbPage > pages) lbPage = pages;
     var start = (lbPage - 1) * LB_SIZE;
     $('lb').innerHTML = view.length ? view.slice(start, start + LB_SIZE).map(function (p, j) {
       var kd = p.d ? (p.k / p.d).toFixed(2) : '0.00';
-      return '<tr' + (p._r <= 3 ? ' class="top top' + p._r + '"' : '') + '><td class="rk">' + p._r + '</td><td><span class="lb-pl">' + avatarOf(p, false) + (p.steamid ? '<button type="button" class="lb-link" data-sid="' + esc(p.steamid) + '">' + esc(p.name) + '</button>' : esc(p.name)) + '</span></td><td class="n">' + fmt(p.exp) + '</td><td><span class="lb-rk">' + fineBadge(p.exp) + '<span>' + esc(fineName(p.exp)) + '</span></span></td>' +
+      return '<tr' + (p._r <= 3 ? ' class="top top' + p._r + '"' : '') + '><td class="rk">' + p._r + '</td><td><span class="lb-pl">' + avatarOf(p, false) + (p.steamid ? '<button type="button" class="lb-link" data-sid="' + esc(p.steamid) + '">' + esc(p.name) + '</button>' : esc(p.name)) + discordBadge(p.discord) + '</span></td><td class="n">' + fmt(p.exp) + '</td><td><span class="lb-rk">' + fineBadge(p.exp) + '<span>' + esc(fineName(p.exp)) + '</span></span></td>' +
         '<td class="n">' + fmt(p.k) + '</td><td class="n">' + fmt(p.d) + '</td><td class="n">' + kd + '</td><td class="n">' + fmt(p.hs) + '</td><td>' + esc(p.time) + '</td><td>' + esc(p.last) + '</td></tr>';
     }).join('') : '<tr><td colspan="10" style="color:var(--muted)">' + (q ? 'Хайлтад тохирох тоглогч олдсонгүй.' : 'Одоогоор тоглогч алга.') + '</td></tr>';
     var pg = '';
@@ -4001,7 +4053,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     fetch('/api/leaderboard').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       var arr = Array.isArray(d) ? d : (d && d.players);
       if (!Array.isArray(arr) || !arr.length) return;
-      players = arr.map(function (x) { return { steamid: x.steamid || '', avatar: x.avatar || '', name: x.name || 'Тоглогч', exp: +x.exp || 0, k: +x.k || +x.kills || 0, d: +x.d || +x.deaths || 0, hs: +x.hs || 0, time: x.time || '—', last: x.last || '—' }; });
+      players = arr.map(function (x) { return { steamid: x.steamid || '', avatar: x.avatar || '', discord: x.discord || null, name: x.name || 'Тоглогч', exp: +x.exp || 0, k: +x.k || +x.kills || 0, d: +x.d || +x.deaths || 0, hs: +x.hs || 0, time: x.time || '—', last: x.last || '—' }; });
       lbDemo = false; lbPage = 1; renderLb(); lbNote();
     }).catch(function () {});
   } catch (e) {}
@@ -4896,7 +4948,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var r = role(m.role), ini = esc((m.name.replace(/[^\p{L}\p{N}]/gu, '').charAt(0) || '?').toUpperCase());
     return '<div class="tm-card' + (/^\d{17}$/.test(m.id) ? ' tm-link' : '') + '" data-pid="' + esc(m.id) + '" style="--c:' + r.c + '"' + (/^\d{17}$/.test(m.id) ? ' tabindex="0" role="button" aria-label="' + esc(m.name) + ' профайл харах"' : '') + '><div class="tm-av">' + ini +
       (m.avatar ? '<img src="' + esc(m.avatar) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') +
-      '</div><div class="tm-nm"><b title="' + esc(m.name) + '">' + esc(m.name) + '</b>' + ctl(m) + '</div></div>';
+      '</div><div class="tm-nm"><b title="' + esc(m.name) + '">' + esc(m.name) + '</b>' + (window.swagDiscordBadge ? window.swagDiscordBadge(m.discord) : '') + ctl(m) + '</div></div>';
   }
   function ctl(m) {
     if (!isOwner || !/^\d{17}$/.test(m.id)) return '';
@@ -5001,6 +5053,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     }).catch(function () { data = { members: DEMO, demo: true }; render(); });
   }
   document.addEventListener('swag-me', function () { initOwner(); load(); });
+  document.addEventListener('swag-discord', function () { load(); });
   render(); load(); initOwner(); setInterval(load, 60000);
 })();
 </script>
@@ -5397,6 +5450,13 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
     authorization_failed: 'Discord баталгаажуулалт амжилтгүй. Дахин оролдоно уу.'
   };
   function message(text) { $('dcMessage').textContent = text || ''; }
+  function publishIdentity() {
+    var account = state && state.linked && state.account ?
+      { id: String(state.account.discord_id), username: state.account.username } : null;
+    document.dispatchEvent(new CustomEvent('swag-discord', { detail: {
+      account: account, available: !!state && !!state.configured && !state.error
+    } }));
+  }
   function render() {
     $('dcLink').hidden = !state || !state.configured || state.linked;
     $('dcUnlink').hidden = !state || !state.linked;
@@ -5421,8 +5481,8 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
       if (result.status === 401) state = { needsLogin: true };
       else if (result.ok) state = data;
       else { state = data; message(errors.unavailable); }
-    } catch (_) { state = { configured: false }; message(errors.unavailable); }
-    render();
+    } catch (_) { state = { configured: false, error: 'bridge_unavailable' }; message(errors.unavailable); }
+    render(); publishIdentity();
   }
   async function action(path) {
     if (!state || !state.csrf || busy) return null;
