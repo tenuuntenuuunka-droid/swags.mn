@@ -90,8 +90,11 @@ export function createDiscordIntegration({ readSession, loadRoles, env = process
     }
     const me = readSession(req);
     if (!me) return json(401, { error: 'not_logged_in' });
+    // Unlinking is disabled for every website account, including privileged roles.
+    // Keep the route blocked for older pages and direct requests; never call the bot.
+    if (route === '/api/discord/unlink') return json(403, { error: 'unlink_disabled' });
     if (route === '/api/discord' && req.method === 'GET') {
-      const common = { configured: configured(), csrf: csrfToken(me, env) };
+      const common = { configured: configured(), csrf: csrfToken(me, env), unlinkAllowed: false };
       if (!configured()) return json(200, { ...common, linked: false });
       try { return json(200, { ...common, ...(await call('/v1/website/status', { steam_id: me.id })) }); }
       catch { return json(503, { ...common, error: 'bridge_unavailable' }); }
@@ -137,10 +140,6 @@ export function createDiscordIntegration({ readSession, loadRoles, env = process
       } catch (error) {
         return finish(['steam_already_linked', 'discord_already_linked'].includes(error.message) ? error.message : 'unavailable');
       }
-    }
-    if (route === '/api/discord/unlink') {
-      try { return json(200, await call('/v1/website/unlink', { steam_id: me.id })); }
-      catch (error) { return json(503, { error: error.message === 'role_not_manageable' ? error.message : 'bridge_unavailable' }); }
     }
     if (route === '/api/discord/sync') {
       // A member may request a refresh, but cannot supply a role or target member.
