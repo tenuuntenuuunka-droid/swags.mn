@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createDiscordIntegration, bridge, csrfToken, checkCsrf, sealFlow, openFlow, flowCookie, cookie, equal } from '../lib/discord.mjs';
+import { linkedProfiles, discordFields } from '../lib/linked-profiles.mjs';
 
 export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/sync', '/api/discord/roles'] };
 
@@ -153,11 +154,18 @@ async function clansHandler(req, url) {
   const canManage = c => !!me && (isOwnerRole || String(c.ownerId) === me.id);
   if (req.method === 'GET') {
     const list = await readClans();
-    if (asJs) return new Response('window.SWAG_CLANS=' + JSON.stringify(list.map(c => [c.tag, c.name, c.color, c.motto, c.founded, mem(c).length || 1, c.ownerId, mem(c)])) + ';',
-      { status: 200, headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store' } });
     const t = (url.searchParams.get('tag') || '').toUpperCase();
-    if (t) { const c = list.find(x => x.tag === t); if (!c || !canManage(c)) return json(403, { error: 'forbidden' }); return json(200, { requests: c.requests || [] }); }
-    return json(200, list.map(c => ({ ...c, requests: undefined })));
+    if (t && !asJs) {
+      const c = list.find(x => x.tag === t);
+      if (!c || !canManage(c)) return json(403, { error: 'forbidden' });
+      const pending = c.requests || [], links = await linkedProfiles(pending.map(member => member.id));
+      return json(200, { requests: pending.map(member => ({ ...member, ...discordFields(links, member.id) })) });
+    }
+    const links = await linkedProfiles(list.flatMap(c => mem(c).map(member => member.id)));
+    const members = c => mem(c).map(member => ({ ...member, ...discordFields(links, member.id) }));
+    if (asJs) return new Response('window.SWAG_CLANS=' + JSON.stringify(list.map(c => [c.tag, c.name, c.color, c.motto, c.founded, mem(c).length || 1, c.ownerId, members(c)])) + ';',
+      { status: 200, headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store' } });
+    return json(200, list.map(c => ({ ...c, members: members(c), requests: undefined })));
   }
   if (!me) return json(401, { error: 'not_logged_in' });
   let store; try { store = await clanStore(); } catch { return json(501, { error: 'storage_unavailable' }); }
@@ -281,7 +289,8 @@ export default async (req) => {
     if (url.pathname === '/api/me') {
       if (!process.env.SESSION_SECRET) return json(500, { error: 'SESSION_SECRET is not set (set it, then redeploy)' });
       const s = readCookie(req); if (!s) return json(401, { error: 'not_logged_in', hasCookie: /swag=/.test(req.headers.get('cookie') || '') });
-      return json(200, { id: s.id, name: s.name, avatar: s.avatar, profileUrl: s.profileUrl, ...(await ratingOf(s.id)), staff: (await loadStaff())[s.id] || '', csrf: csrfToken(s) });
+      const links = await linkedProfiles([s.id]);
+      return json(200, { id: s.id, name: s.name, avatar: s.avatar, profileUrl: s.profileUrl, ...(await ratingOf(s.id)), staff: (await loadStaff())[s.id] || '', csrf: csrfToken(s), ...discordFields(links, s.id) });
     }
     if (url.pathname === '/api/pfimg') {
       const kind = url.searchParams.get('kind'); if (kind !== 'banner' && kind !== 'avatar') return json(400, { error: 'bad_kind' });
@@ -315,22 +324,26 @@ export default async (req) => {
     }
     if (url.pathname === '/api/team') {
       const st = await loadStaff(), ids = Object.keys(st);
-      const members = await Promise.all(ids.map(async id => { const pr = await cachedProfile(id); return { id, name: pr.name, avatar: pr.avatar, role: st[id] }; }));
+      const links = await linkedProfiles(ids);
+      const members = await Promise.all(ids.map(async id => { const pr = await cachedProfile(id); return { id, name: pr.name, avatar: pr.avatar, role: st[id], ...discordFields(links, id) }; }));
       return json(200, { configured: true, members }, { 'Cache-Control': 'public, max-age=10' });
     }
     if (url.pathname === '/api/staff') return await staffHandler(req, url);
     if (url.pathname === '/api/player') {
       const id = url.searchParams.get('id') || ''; if (!/^\d{17}$/.test(id)) return json(400, { error: 'bad_id' });
       const r = await ratingOf(id), stf = (await loadStaff())[id] || '';
-      if (!r.rating && !stf) return json(404, { error: 'not_found' });   // rating-гүй ч staff бол профайл нээгдэнэ
+      const links = await linkedProfiles([id]);
+      const inClan = !r.rating && !stf && !links.profiles[id] && (await readClans()).some(c => (c.members || []).some(member => String(member.id) === id));
+      if (!r.rating && !stf && !links.profiles[id] && !inClan) return json(404, { error: 'not_found' });
       const pr = await cachedProfile(id);
-      return json(200, { id, name: pr.name, avatar: pr.avatar, profileUrl: pr.profileUrl, ...r, staff: stf }, { 'Cache-Control': 'public, max-age=10' });
+      return json(200, { id, name: pr.name, avatar: pr.avatar, profileUrl: pr.profileUrl, ...r, staff: stf, ...discordFields(links, id) }, { 'Cache-Control': 'public, max-age=10' });
     }
     if (url.pathname === '/api/leaderboard') {
       const all = (await loadAll()).filter(x => x.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 100);
+      const links = await linkedProfiles(all.map(player => player.id));
       const out = await Promise.all(all.map(async x => {
         const pr = await cachedProfile(x.id), st = x.stats || {};
-        return { steamid: x.id, name: pr.name, avatar: pr.avatar, exp: x.rating, k: st.kills || 0, d: st.deaths || 0, hs: st.hs || 0, time: st.time || '—', last: '—' };
+        return { steamid: x.id, name: pr.name, avatar: pr.avatar, exp: x.rating, k: st.kills || 0, d: st.deaths || 0, hs: st.hs || 0, time: st.time || '—', last: '—', ...discordFields(links, x.id) };
       }));
       return json(200, out, { 'Cache-Control': 'public, max-age=60' });
     }
