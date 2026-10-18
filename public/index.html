@@ -2719,7 +2719,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     <button id="dcSync" type="button" class="btn line" data-dc-action hidden>Role шинэчлэх</button>
     <a id="dcJoin" class="btn line" href="https://discord.gg/cWGRbxs68" target="_blank" rel="noopener noreferrer" hidden>Серверт нэгдэх ↗</a>
   </div>
-  <p id="dcLocked" class="dc-note" hidden>Холбосон Discord хаягийг салгах боломжгүй.</p>
+  <p id="dcLocked" class="dc-note" hidden>Өөрийн Discord хаягийн холболтыг салгах боломжгүй.</p>
   <p class="dc-note">Discord role нь website дээр Owner-оос олгосон эрхийн дагуу шинэчлэгдэнэ. Steam хаяг болон бусад Discord role-д өөрчлөлт орохгүй.</p>
 </dialog>
 
@@ -3208,7 +3208,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
 
 
   /* ---------- Профайл: өөрийн зураг / GIF (баннер, avatar) ---------- */
-  var pfCustom = { banner: '', avatar: '', id: '' }, pfView = null, pfKeep = false;
+  var pfCustom = { banner: '', avatar: '', id: '' }, pfView = null, pfKeep = false, pfDiscordBusy = false;
   function pfDB() { return new Promise(function (res, rej) { var r = indexedDB.open('swagPf', 1); r.onupgradeneeded = function () { r.result.createObjectStore('img'); }; r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); }; }); }
   function pfGet(k) { return pfDB().then(function (db) { return new Promise(function (res) { var q = db.transaction('img').objectStore('img').get(k); q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { res(null); }; }); }).catch(function () { return null; }); }
   function pfPut(k, v) { return pfDB().then(function (db) { return new Promise(function (res) { var tx = db.transaction('img', 'readwrite'); tx.objectStore('img').put(v, k); tx.oncomplete = function () { res(true); }; tx.onerror = function () { res(false); }; }); }).catch(function () { return false; }); }
@@ -3270,9 +3270,29 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       var a = b.getAttribute('data-pf');
       if (a === 'ban') pfPick('banner'); else if (a === 'av') pfPick('avatar');
       else if (a === 'banx') pfReset('banner'); else if (a === 'avx') pfReset('avatar');
+      else if (a === 'discord-unlink') disconnectProfileDiscord();
       else if (a === 'back') { var bk = pfView && pfView._from === 'staff' ? 'staff' : pfView && pfView._from === 'clan' ? 'clans' : 'leaderboard'; pfView = null; var li = ids.indexOf(bk); if (li > -1) go(li); }
     });
   })();
+  async function disconnectProfileDiscord() {
+    var target = pfView, actor = steamUser;
+    if (pfDiscordBusy || !actor || actor.staff !== 'swag' || !target || target.id === actor.id || !target.discord) return;
+    var id = target.id, discordId = target.discord.id;
+    if (!window.confirm(target.name + ' · SteamID ' + id + '\nDiscord: ' + target.discord.username + '\n\nDiscord холболтыг салгах уу? Website-ээр олгосон Discord role-ууд хасагдана.')) return;
+    pfDiscordBusy = true; renderProfilePage();
+    var errors = { swag_only: 'Зөвхөн SWAG role-той хүн салгаж чадна.', self_unlink_disabled: 'Өөрийн Discord холболтыг салгах боломжгүй.',
+      link_changed: 'Discord холболт өөрчлөгдсөн. Профайлыг дахин нээнэ үү.', not_linked: 'Discord хаяг холбоогүй байна.',
+      role_not_manageable: 'Discord role-ыг хасаж чадсангүй. Холболтыг хэвээр үлдээлээ.', csrf: 'Хуудсаа шинэчлээд дахин оролдоно уу.' };
+    try {
+      var result = await fetch('/api/discord/admin-unlink', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Swag-Csrf': actor.csrf || '' }, body: JSON.stringify({ steam_id: id, discord_id: discordId }) });
+      var data = await result.json();
+      if (!result.ok || data.linked !== false) throw new Error(data.error || 'unavailable');
+      document.dispatchEvent(new CustomEvent('swag-discord-unlinked', { detail: { steam_id: id } }));
+      toast('Discord холболтыг салгалаа.');
+    } catch (error) { toast(errors[error.message] || 'Холболтыг салгаж чадсангүй. Дахин оролдоно уу.'); }
+    finally { pfDiscordBusy = false; renderProfilePage(); }
+  }
   /* ---------- Профайл хуудас ---------- */
   function pfK(label, val, sub, color) { return '<div class="pf-k"' + (color ? ' style="--kc:' + color + '"' : '') + '><small>' + esc(label) + '</small><b>' + val + '</b>' + (sub ? '<em>' + esc(sub) + '</em>' : '') + '</div>'; }
   function pfRing(pct, label, color) {
@@ -3299,6 +3319,9 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       '<span class="pf-chip">' + (st && st.last ? 'Сүүлд: ' + esc(st.last) : (rt ? 'Серверт тоглосон' : (own ? 'Серверт тоглоогүй' : 'Мэдээлэл алга'))) + '</span></div></div>' +
       '</div></div>' + (own ? '<p class="pf-note">Баннер, профайл зурагт PNG, JPG, WEBP болон GIF (4MB хүртэл) оруулж болно.</p>' : '');
     h += discordProfile(u.discord, own, u.discord_status);
+    if (!own && steamUser && steamUser.staff === 'swag' && String(u.id) !== String(steamUser.id) && /^\d{17}$/.test(u.id) && u.discord && /^\d{17,20}$/.test(u.discord.id)) {
+      h += '<div class="pf-sec dc-admin"><h3>SWAG · Discord удирдах</h3><button class="btn line" type="button" data-pf="discord-unlink"' + (pfDiscordBusy ? ' disabled' : '') + '>' + (pfDiscordBusy ? 'Салгаж байна…' : 'Discord салгах') + '</button><p class="pf-note">Энэ гишүүний Discord холболт болон website-ээр олгосон Discord role-ууд хасагдана.</p></div>';
+    }
     if (!rt) {
       h += '<div class="pf-sec pf-empty"><b>Unranked</b>' + (own ? 'Та серверт тоглоогүй байна. Серверт тоглосны дараа таны rank, rating болон статистик энд гарна.' : 'Энэ тоглогч серверт тоглоогүй байна.') + '</div>';
       root.innerHTML = h; return;
@@ -3587,6 +3610,18 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     });
     players.forEach(function (player) { if (String(player.steamid) === String(steamUser.id)) player.discord = steamUser.discord; });
     renderSteam(); renderLb();
+    if (curClan && clanDlg.open) openClan(curClan.tag);
+  });
+  document.addEventListener('swag-discord-unlinked', function (event) {
+    var id = event.detail && event.detail.steam_id;
+    if (!/^\d{17}$/.test(id)) return;
+    if (pfView && String(pfView.id) === id) { pfView.discord = null; pfView.discord_status = 'unlinked'; }
+    clans.forEach(function (c) {
+      (c.mem || []).forEach(function (member) { if (String(member.id) === id) member.discord = null; });
+      c.members.forEach(function (member) { if (String(member[5]) === id) member[6] = null; });
+    });
+    players.forEach(function (player) { if (String(player.steamid) === id) player.discord = null; });
+    renderProfilePage(); renderLb();
     if (curClan && clanDlg.open) openClan(curClan.tag);
   });
   $('cdBnUp').addEventListener('click', function () { $('cdBnFile').click(); });
@@ -5055,6 +5090,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   }
   document.addEventListener('swag-me', function () { initOwner(); load(); });
   document.addEventListener('swag-discord', function () { load(); });
+  document.addEventListener('swag-discord-unlinked', function () { load(); });
   render(); load(); initOwner(); setInterval(load, 60000);
 })();
 </script>
@@ -5445,7 +5481,7 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
   var errors = {
     linked: 'Discord хаяг амжилттай холбогдлоо.', cancelled: 'Discord холболтыг цуцаллаа.',
     invalid_state: 'Холболтын хугацаа дууссан. Дахин оролдоно уу.',
-    steam_already_linked: 'Энэ Steam профайл өөр Discord хаягтай холбогдсон байна. Холболтыг салгах боломжгүй.',
+    steam_already_linked: 'Энэ Steam профайл өөр Discord хаягтай холбогдсон байна. Холболтоо өөрөө салгах боломжгүй. SWAG-тай холбоо барина уу.',
     discord_already_linked: 'Энэ Discord хаяг өөр Steam профайлтай холбогдсон байна.',
     unavailable: 'Холболтын үйлчилгээ түр боломжгүй байна. Дахин оролдоно уу.',
     authorization_failed: 'Discord баталгаажуулалт амжилтгүй. Дахин оролдоно уу.'
