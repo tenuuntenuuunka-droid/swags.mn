@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createDiscordIntegration, bridge, csrfToken, checkCsrf, sealFlow, openFlow, flowCookie, cookie, equal } from '../lib/discord.mjs';
 import { linkedProfiles, discordFields } from '../lib/linked-profiles.mjs';
+import { STAFF_ROLES, isWebsiteAdmin, resolveStaff, staffAccess, staffChangeError, staffDocument } from '../lib/staff.mjs';
 
 export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/sync', '/api/discord/roles'] };
 
@@ -62,54 +63,42 @@ async function ratingOf(id) {
     return i < 0 ? { rating: 0, stats: null, place: 0, players: all.length } : { rating: all[i].rating, stats: all[i].stats, place: i + 1, players: all.length };
   } catch (e) { console.error('rating', e.message); return { rating: 0, stats: null, place: 0, players: 0 }; }
 }
-const STAFF_ROLES = ['owner', 'coowner', 'founder', 'manager', 'moderator', 'boss', 'vip', 'admin'];
 function seedStaff() {
   try { const d = JSON.parse(readFileSync(new URL('./staff.json', import.meta.url), 'utf8')); const o = {}; for (const k in d) if (/^\d{17}$/.test(k) && STAFF_ROLES.includes(d[k])) o[k] = d[k]; return o; }
   catch (e) { console.error('staff', e.message); return {}; }
 }
-// Staff жагсаалт: staff.json дахь "owner"-ууд (super owner) байнга түгжигдсэн. Бусад role-ыг сайтаас (Netlify Blobs) удирдана.
+// SWAG is above Owner. The root SWAG account is protected; Owner keeps its existing lower-role powers.
 const strongStore = async name => { const { getStore } = await import('@netlify/blobs'); return getStore({ name, consistency: 'strong' }); };
 const staffStore = async () => strongStore('staff');
 // Нэвтэрсэн хүн бүрийн нэр/зургийг хадгална — role авсан хүн "Steam 123456" биш жинхэнэ нэрээрээ харагдана
 async function saveProfile(p) { try { await (await strongStore('profiles')).setJSON(p.id, { name: p.name, avatar: p.avatar || '', profileUrl: p.profileUrl || '' }); } catch (e) { console.error('saveProfile', e.message); } }
 async function savedProfile(id) { try { return await (await strongStore('profiles')).get(id, { type: 'json' }); } catch { return null; } }
 async function loadStaff(strict = false) {
-  const seed = seedStaff(), locked = {};
-  for (const k in seed) if (seed[k] === 'owner') locked[k] = 'owner';
+  const seed = seedStaff();
   let saved = null;
   try { saved = await (await staffStore()).get('all', { type: 'json' }); } catch (error) { if (strict) throw new Error('roles_unavailable'); saved = null; }
-  if (strict && saved !== null && (typeof saved !== 'object' || Array.isArray(saved))) throw new Error('roles_unavailable');
-  if (strict && saved && Object.entries(saved).some(([id, role]) => !/^\d{17}$/.test(id) || !STAFF_ROLES.includes(role))) throw new Error('roles_unavailable');
-  if (!saved || typeof saved !== 'object') return { ...seed };
-  const o = {}; for (const k in saved) if (/^\d{17}$/.test(k) && STAFF_ROLES.includes(saved[k])) o[k] = saved[k];
-  return { ...o, ...locked };
+  try { return resolveStaff(seed, saved); }
+  catch (error) { if (strict) throw error; return resolveStaff(seed, null); }
 }
 const superOwners = () => Object.keys(seedStaff()).filter(k => seedStaff()[k] === 'owner');
-// Owner role-той хүн сайтаас staff-д role өгөх / солих / хасах
+// Every staff mutation is authorized using current server-owned roles, never session role claims.
 async function staffHandler(req, url) {
   const me = readCookie(req); if (!me) return json(401, { error: 'not_logged_in' });
   let cur; try { cur = await loadStaff(true); } catch { return json(503, { error: 'storage_unavailable' }); }
-  if (cur[me.id] !== 'owner') return json(403, { error: 'owner_only' });
-  if (req.method === 'GET') return json(200, { roles: STAFF_ROLES, superOwners: superOwners() });
+  const seed = seedStaff(), access = staffAccess(seed, cur, me.id);
+  if (!access.canManage) return json(403, { error: 'owner_only' });
+  if (req.method === 'GET') return json(200, { roles: STAFF_ROLES, superOwners: superOwners(), ...access });
   if (!checkCsrf(req, me)) return json(403, { error: 'csrf' });
   let store; try { store = await staffStore(); } catch { return json(501, { error: 'storage_unavailable' }); }
-  const sup = superOwners();
   const b = req.method === 'DELETE' ? { id: url.searchParams.get('id') } : await req.json().catch(() => ({}));
   const id = String(b.id || '').trim();
-  if (!/^\d{17}$/.test(id)) return json(400, { error: 'bad_id' });
-  if (sup.includes(id)) return json(403, { error: 'locked_owner' });
-  const next = { ...cur }; for (const k of sup) delete next[k];
-  if (req.method === 'DELETE') {
-    if (cur[id] === 'owner' && !sup.includes(me.id)) return json(403, { error: 'super_owner_only' });
-    delete next[id];
-  } else if (req.method === 'POST') {
-    const r = String(b.role || '').toLowerCase();
-    if (!STAFF_ROLES.includes(r)) return json(400, { error: 'bad_role' });
-    if ((r === 'owner' || cur[id] === 'owner') && !sup.includes(me.id)) return json(403, { error: 'super_owner_only' });
-    if (id === me.id) return json(403, { error: 'self' });
-    next[id] = r;
-  } else return json(405, { error: 'method' });
-  await store.setJSON('all', next);
+  const role = String(b.role || '').toLowerCase();
+  const error = staffChangeError(seed, cur, me.id, id, role, req.method);
+  if (error) return json(error === 'method' ? 405 : ['bad_id', 'bad_role'].includes(error) ? 400 : 403, { error });
+  const next = { ...cur };
+  if (req.method === 'DELETE') delete next[id];
+  else next[id] = role;
+  await store.setJSON('all', staffDocument(seed, next));
   let discordSync = 'queued';
   try { await bridge('/v1/website/reconcile', {}); } catch { discordSync = 'pending'; }
   return json(200, { ok: true, discord_sync: discordSync });
@@ -143,14 +132,14 @@ async function profile(id) {
 async function skinStore(name = 'skins') { const { getStore } = await import('@netlify/blobs'); return getStore(name); }
 const SKIN_KEYS = ['swagSkinLoadout', 'swagSkinExtras'];
 
-// ---- Клан нээх (зөвхөн staff.json дахь "owner" role) ----
+// ---- Clan administration: SWAG and Owner ----
 const clanStore = async () => skinStore('clans');
 async function readClans() { try { return (await (await clanStore()).get('all', { type: 'json' })) || []; } catch { return []; } }
 async function clansHandler(req, url) {
   const asJs = url.pathname === '/api/clans.js';
   const mem = c => Array.isArray(c.members) ? c.members : [];
   const me = readCookie(req);
-  const isOwnerRole = !!me && (await loadStaff())[me.id] === 'owner';
+  const isOwnerRole = !!me && isWebsiteAdmin((await loadStaff())[me.id]);
   const canManage = c => !!me && (isOwnerRole || String(c.ownerId) === me.id);
   if (req.method === 'GET') {
     const list = await readClans();
