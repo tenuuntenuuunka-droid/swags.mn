@@ -5,7 +5,7 @@ import { createDiscordIntegration, bridge, csrfToken, checkCsrf, sealFlow, openF
 import { linkedProfiles, discordFields } from '../lib/linked-profiles.mjs';
 import { STAFF_ROLES, isWebsiteAdmin, resolveStaff, staffAccess, staffChangeError, staffDocument } from '../lib/staff.mjs';
 
-export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/sync', '/api/discord/roles'] };
+export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/admin-unlink', '/api/discord/sync', '/api/discord/roles'] };
 
 const OPENID = 'https://steamcommunity.com/openid/login';
 const NS = 'http://specs.openid.net/auth/2.0';
