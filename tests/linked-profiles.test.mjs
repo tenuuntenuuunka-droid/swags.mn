@@ -58,5 +58,6 @@ test('real profile, team and session routes include verified Discord and server-
   assert.equal(player.staff, 'owner'); assert.deepEqual(player.discord, me.discord);
   const team = await (await handler(new Request(origin + '/api/team'))).json();
   assert.equal(team.members.find(member => member.id === owner).discord.username, 'V12');
-  assert.equal(team.members.find(member => member.id === originalOwner).role, 'owner');
+  assert.equal(team.members.find(member => member.id === originalOwner), undefined);
+  assert.equal(team.members.find(member => member.id === '76561199845627878').role, 'swag');
 });

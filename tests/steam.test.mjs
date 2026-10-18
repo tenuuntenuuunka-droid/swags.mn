@@ -78,7 +78,7 @@ test('verified Steam callback creates a session recognized by api/me', async t =
   const profile = await me.json();
   assert.equal(profile.id, steamId);
   assert.equal(profile.name, 'SWAG Test');
-  assert.equal(profile.staff, 'owner');
+  assert.equal(profile.staff, ''); // The former seed Owner can still sign in as an ordinary member.
   assert.ok(profile.csrf);
 });
 

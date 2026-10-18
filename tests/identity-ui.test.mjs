@@ -35,6 +35,43 @@ test('Discord badges escape names and reject executable profile links', () => {
   assert.doesNotMatch(rendered, /<img/);
 });
 
+test('SWAG renders above Owner and Owner controls cannot edit or assign SWAG', () => {
+  const start = html.indexOf('  var ROLES = ['), end = html.indexOf('  function say(', start);
+  const code = html.slice(start, end);
+  const context = vm.createContext({ document: {}, window: {} });
+  vm.runInContext(code, context);
+  assert.equal(context.ROLES[0].k, 'swag'); assert.equal(context.ROLES[0].n, 'SWAG');
+  assert.equal(context.ROLES[1].k, 'owner');
+  context.isOwner = true;
+  context.meU = { id: '76561199487127340', staff: 'owner' };
+  context.assignableRoles = context.ROLES.map(role => role.k).filter(role => role !== 'swag');
+  context.lockedUsers = ['76561199845627878'];
+  const root = context.ctl({ id: '76561199845627878', role: 'swag' });
+  assert.match(root, /locked/); assert.doesNotMatch(root, /<select|data-rm/);
+  const lower = context.ctl({ id: '76561190000000002', role: 'vip' });
+  assert.match(lower, /<select/); assert.doesNotMatch(lower, /value="swag"/);
+  context.meU = { id: '76561199845627878', staff: 'swag' };
+  context.assignableRoles = context.ROLES.map(role => role.k);
+  const owner = context.ctl({ id: '76561199487127340', role: 'owner' });
+  assert.match(owner, /value="swag"/); assert.match(owner, /data-rm/);
+});
+
+test('SWAG profile badge and clan administration inherit Owner capabilities', () => {
+  const root = { style: { setProperty() {} }, innerHTML: '' };
+  const person = { id: '76561199845627878', name: 'SWAG member', staff: 'swag', discord: account };
+  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: null, steamUser: person, pfCustom: {} });
+  vm.runInContext(helpers + profile + '\nrenderProfilePage();', context);
+  assert.match(root.innerHTML, /★ SWAG/);
+  root.style = {};
+  const code = html.slice(html.indexOf('  function ownerClanUI()'), html.indexOf('  ownerClanUI();'));
+  vm.runInContext(code + '\nownerClanUI();', context);
+  assert.equal(root.style.display, '');
+  context.steamUser.staff = 'owner'; vm.runInContext('ownerClanUI();', context);
+  assert.equal(root.style.display, '');
+  context.steamUser.staff = 'vip'; vm.runInContext('ownerClanUI();', context);
+  assert.equal(root.style.display, 'none');
+});
+
 test('clan member rows keep the Steam profile ID and show the linked Discord name', () => {
   const code = html.slice(html.indexOf('  function openClan(tag)'), html.indexOf('  var curClan = null;'));
   const elements = {};
