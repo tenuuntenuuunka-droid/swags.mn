@@ -9,3 +9,5 @@ The root SWAG account is Steam ID `76561199845627878`. Steam ID `765611994871273
 Existing staff data is read without resetting clans, account links or lower roles. New staff writes use a versioned record; explicit removals of seeded Owners persist across reloads. Stored data cannot override the root SWAG account.
 
 These are website roles. A website SWAG assignment does not grant Discord server ownership or any Discord role automatically. Existing explicit Admin/VIP/Boss mappings continue to work.
+
+Only SWAG can disconnect another member's linked Discord using the button on that member's profile. Self-disconnect stays disabled. The website and bot both verify the operator's current SWAG authority. Confirmation includes the displayed Steam and Discord account; changed target links are rejected. Only integration-owned Discord grants are removed, while independent Discord roles and website roles are preserved.

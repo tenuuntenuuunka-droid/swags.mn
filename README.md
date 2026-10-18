@@ -23,7 +23,7 @@ npm test
 
 - Steam sign-in with a short-lived login state check.
 - Discord identity verification using OAuth authorization code flow, PKCE and Steam-bound encrypted state.
-- Account linking and a role-refresh control; browser writes require CSRF checks. Website unlinking is disabled in the interface and on the server, including for Owner and SWAG accounts.
+- Account linking and a role-refresh control; browser writes require CSRF checks. Self-disconnect is disabled. Only SWAG can disconnect another member's linked Discord from that member's profile, with a confirmation and fresh server permission checks.
 - Linked Discord identities in profiles, clan status and rosters, staff cards, account menus and leaderboards.
 - [SWAG above Owner](WEBSITE-ROLES.md), with server-enforced authority and protected SWAG assignments.
 - An authenticated role snapshot for the Railway bot; the bot token stays on Railway.
