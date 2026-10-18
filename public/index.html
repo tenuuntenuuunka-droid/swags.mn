@@ -2717,9 +2717,9 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     <button id="dcSteam" type="button" class="btn" hidden>Steam-ээр нэвтрэх</button>
     <button id="dcLink" type="button" class="btn" data-dc-action hidden>Discord холбох →</button>
     <button id="dcSync" type="button" class="btn line" data-dc-action hidden>Role шинэчлэх</button>
-    <button id="dcUnlink" type="button" class="btn line" data-dc-action hidden>Холболт салгах</button>
     <a id="dcJoin" class="btn line" href="https://discord.gg/cWGRbxs68" target="_blank" rel="noopener noreferrer" hidden>Серверт нэгдэх ↗</a>
   </div>
+  <p id="dcLocked" class="dc-note" hidden>Холбосон Discord хаягийг салгах боломжгүй.</p>
   <p class="dc-note">Discord role нь website дээр Owner-оос олгосон эрхийн дагуу шинэчлэгдэнэ. Steam хаяг болон бусад Discord role-д өөрчлөлт орохгүй.</p>
 </dialog>
 
@@ -5445,7 +5445,7 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
   var errors = {
     linked: 'Discord хаяг амжилттай холбогдлоо.', cancelled: 'Discord холболтыг цуцаллаа.',
     invalid_state: 'Холболтын хугацаа дууссан. Дахин оролдоно уу.',
-    steam_already_linked: 'Энэ Steam профайл өөр Discord хаягтай холбогдсон байна. Эхлээд хуучин холболтоо салгана уу.',
+    steam_already_linked: 'Энэ Steam профайл өөр Discord хаягтай холбогдсон байна. Холболтыг салгах боломжгүй.',
     discord_already_linked: 'Энэ Discord хаяг өөр Steam профайлтай холбогдсон байна.',
     unavailable: 'Холболтын үйлчилгээ түр боломжгүй байна. Дахин оролдоно уу.',
     authorization_failed: 'Discord баталгаажуулалт амжилтгүй. Дахин оролдоно уу.'
@@ -5460,7 +5460,7 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
   }
   function render() {
     $('dcLink').hidden = !state || !state.configured || state.linked;
-    $('dcUnlink').hidden = !state || !state.linked;
+    $('dcLocked').hidden = !state || !state.linked;
     $('dcSync').hidden = !state || !state.linked;
     $('dcJoin').hidden = !state || !state.linked || state.account.sync_state !== 'not_in_server';
     $('dcSteam').hidden = !state || !state.needsLogin;
@@ -5505,10 +5505,6 @@ html body .side { background: transparent !important; -webkit-backdrop-filter: n
   $('dcLink').addEventListener('click', async function () {
     var data = await action('/auth/discord');
     if (data && typeof data.url === 'string' && data.url.startsWith('https://discord.com/oauth2/authorize?')) location.assign(data.url);
-  });
-  $('dcUnlink').addEventListener('click', async function () {
-    if (!window.confirm('Discord холболтыг салгах уу? Энэ холболтоор олгосон role-ууд хасагдана.')) return;
-    var data = await action('/api/discord/unlink'); if (data) await load();
   });
   $('dcSync').addEventListener('click', async function () {
     var data = await action('/api/discord/sync');
