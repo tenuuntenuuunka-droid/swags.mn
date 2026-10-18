@@ -4,7 +4,8 @@ SWAG WEBSITE — FINAL DISCORD UPDATE
 2. The top-right Discord icon now opens Connect Discord instead of the server invite.
 3. The page includes the Discord interface, styles and scripts in the HTML itself.
 4. For real Steam/Discord login and automatic role sync, deploy the whole project,
-   including netlify/functions, to the EXISTING swagcs3 Netlify project.
+   including netlify/functions, to Netlify. For a NEW project, follow
+   NETLIFY-SETUP.md: set BASE_URL and a private SESSION_SECRET, then redeploy.
    Opening an HTML file on your computer displays the site but cannot perform
    secure server-side account linking or role assignment.
 5. Follow CONNECT-DISCORD.md for Discord OAuth settings, Netlify server variables,

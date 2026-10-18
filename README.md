@@ -1,12 +1,12 @@
 # SWAG CS2 website
 
-Website source for the existing **https://swagcs3.netlify.app** project, with Steam sign-in and Discord account linking.
+SWAG website source with Steam sign-in and Discord account linking.
 
 The **top-right Discord icon** opens **Connect Discord**. Its interface, styles and browser scripts are included in `public/index.html`. Once the server settings are configured, members can link their Discord account to their signed-in Steam profile and receive explicitly mapped, owner-approved Discord roles from the existing SWAG bot.
 
 ## Deploy the source
 
-Deploy this repository through the existing Netlify project. `netlify.toml` publishes `public/` and builds the functions in `netlify/functions/`. Retain the existing Netlify Blobs stores and Steam session secret. The ZIP files are downloadable copies; deploy the extracted source in this repository.
+`netlify.toml` publishes `public/` and builds the functions in `netlify/functions/`. For a new Netlify project, follow **[NETLIFY-SETUP.md](NETLIFY-SETUP.md)**: configure its public `BASE_URL` and a private `SESSION_SECRET` available to production Functions, then redeploy. A new project does not inherit another site's variables or stored data. When updating an existing project, retain its Netlify Blobs stores and Steam session secret. The ZIP files are downloadable copies of the source.
 
 Follow **[CONNECT-DISCORD.md](CONNECT-DISCORD.md)** for the exact Discord callback URL, server environment settings and `/website map` commands. `.env.example` contains names and blank placeholders only. Configure real credentials in the hosting service, never in `index.html` or Git.
 
