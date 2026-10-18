@@ -26,6 +26,50 @@ test('own and public profiles display linked Discord instead of a generic connec
   assert.doesNotMatch(root.innerHTML, /data-discord-open/);
 });
 
+test('only SWAG sees disconnect on another linked profile, never on its own profile', () => {
+  const root = { style: { setProperty() {} }, innerHTML: '' };
+  const target = { id: '76561190000000001', name: 'Other member', staff: 'vip', discord: account };
+  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: target,
+    steamUser: { id: '76561199845627878', staff: 'swag' }, pfCustom: {}, pfDiscordBusy: false });
+  vm.runInContext(helpers + profile + '\nrenderProfilePage();', context);
+  assert.match(root.innerHTML, /data-pf="discord-unlink"/);
+  assert.match(root.innerHTML, /SWAG · Discord удирдах/);
+  for (const role of ['owner', 'founder', 'manager', 'vip', '']) {
+    context.steamUser.staff = role; vm.runInContext('renderProfilePage();', context);
+    assert.doesNotMatch(root.innerHTML, /data-pf="discord-unlink"/);
+  }
+  context.steamUser.staff = 'swag'; context.pfView = { ...target, id: context.steamUser.id };
+  vm.runInContext('renderProfilePage();', context);
+  assert.doesNotMatch(root.innerHTML, /data-pf="discord-unlink"/);
+  context.pfView = { ...target, discord: null };
+  vm.runInContext('renderProfilePage();', context);
+  assert.doesNotMatch(root.innerHTML, /data-pf="discord-unlink"/);
+});
+
+test('profile disconnect confirms the displayed identity, sends only its target and refreshes only on success', async () => {
+  const start = html.indexOf('  async function disconnectProfileDiscord()');
+  const code = html.slice(start, html.indexOf('  /* ---------- Профайл хуудас', start));
+  const calls = [], events = [], messages = [], actor = { id: '76561199845627878', staff: 'swag', csrf: 'test', discord: { ...account } };
+  const context = vm.createContext({ steamUser: actor, pfView: { id: '76561190000000001', name: 'Other member', discord: account }, pfDiscordBusy: false,
+    window: { confirm(text) { assert.match(text, /Other member/); assert.match(text, /V12/); return true; } },
+    renderProfilePage() {}, toast(message) { messages.push(message); },
+    document: { dispatchEvent(event) { events.push(event); } }, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
+    fetch: async (url, options) => { calls.push([url, options]); return { ok: true, json: async () => ({ ok: true, linked: false }) }; }
+  });
+  vm.runInContext(code, context); await context.disconnectProfileDiscord();
+  assert.equal(calls[0][0], '/api/discord/admin-unlink');
+  assert.deepEqual(JSON.parse(calls[0][1].body), { steam_id: '76561190000000001', discord_id: account.id });
+  assert.equal(calls[0][1].headers['X-Swag-Csrf'], 'test');
+  assert.equal(events.length, 1); assert.equal(events[0].type, 'swag-discord-unlinked');
+  assert.equal(events[0].detail.steam_id, '76561190000000001');
+  assert.equal(actor.discord.username, 'V12'); assert.equal(context.pfDiscordBusy, false);
+  context.fetch = async () => ({ ok: false, json: async () => ({ error: 'role_not_manageable' }) });
+  await context.disconnectProfileDiscord();
+  assert.equal(events.length, 1); assert.match(messages.at(-1), /Холболтыг хэвээр/);
+  context.window.confirm = () => false; await context.disconnectProfileDiscord();
+  assert.equal(events.length, 1);
+});
+
 test('Discord badges escape names and reject executable profile links', () => {
   const context = vm.createContext({ esc, window: {} });
   vm.runInContext(helpers, context);

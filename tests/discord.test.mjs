@@ -123,6 +123,51 @@ test('website unlink requests are disabled without changing a saved link or call
   assert.equal(calls.length, 1);
   assert.equal((await handler({ readSession: () => null })(post('/api/discord/unlink'))).status, 401);
 });
+
+const targetSteam = '76561190000000001', targetDiscord = '123456789012345678';
+const adminUnlink = (body = { steam_id: targetSteam, discord_id: targetDiscord }, headers = {}) => new Request(origin + '/api/discord/admin-unlink', {
+  method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Swag-Csrf': csrfToken(session, env), ...headers }, body: JSON.stringify(body)
+});
+
+test('only a current server-approved SWAG can disconnect another linked account', async () => {
+  let calls = 0;
+  for (const role of ['', 'owner', 'coowner', 'founder', 'manager', 'moderator', 'vip', 'admin', 'boss']) {
+    const run = handler({ readSession: () => ({ ...session, staff: 'swag' }), loadRoles: async () => ({ [session.id]: role }),
+      callBridge: async () => { calls++; return {}; } });
+    const result = await run(adminUnlink({ steam_id: targetSteam, discord_id: targetDiscord, role: 'swag', actor_steam_id: targetSteam }));
+    assert.equal(result.status, 403); assert.deepEqual(await result.json(), { error: 'swag_only' });
+  }
+  assert.equal(calls, 0);
+  const args = [];
+  const run = handler({ loadRoles: async () => ({ [session.id]: 'swag' }), callBridge: async (...values) => { args.push(values); return { linked: false }; } });
+  const result = await run(adminUnlink({ steam_id: targetSteam, discord_id: targetDiscord, actor_steam_id: targetSteam, role: 'owner' }));
+  assert.equal(result.status, 200); assert.deepEqual(await result.json(), { ok: true, linked: false });
+  assert.deepEqual(args, [['/v1/website/unlink', { steam_id: targetSteam, discord_id: targetDiscord, actor_steam_id: session.id }]]);
+});
+
+test('SWAG admin unlink validates CSRF, target identity and self-disconnect without side effects', async () => {
+  let calls = 0;
+  const run = handler({ loadRoles: async () => ({ [session.id]: 'swag' }), callBridge: async () => { calls++; } });
+  assert.equal((await run(adminUnlink(undefined, { 'X-Swag-Csrf': 'wrong' }))).status, 403);
+  assert.equal((await run(adminUnlink(undefined, { Origin: 'https://attacker.example' }))).status, 403);
+  assert.equal((await run(get('/api/discord/admin-unlink'))).status, 403);
+  for (const body of [{}, { steam_id: targetSteam }, { steam_id: 76561190000000001, discord_id: targetDiscord },
+    { steam_id: targetSteam, discord_id: 'invalid' }]) assert.equal((await run(adminUnlink(body))).status, 400);
+  const self = await run(adminUnlink({ steam_id: session.id, discord_id: targetDiscord }));
+  assert.equal(self.status, 403); assert.deepEqual(await self.json(), { error: 'self_unlink_disabled' });
+  assert.equal(calls, 0);
+  assert.equal((await handler({ readSession: () => null })(adminUnlink())).status, 401);
+  const offline = handler({ loadRoles: async () => { throw Error('offline'); }, callBridge: async () => { calls++; } });
+  assert.equal((await offline(adminUnlink())).status, 503); assert.equal(calls, 0);
+});
+
+test('admin unlink preserves stale or unmanageable links and reports failures', async () => {
+  for (const [error, status] of [['link_changed', 409], ['not_linked', 409], ['role_not_manageable', 503], ['swag_only', 403]]) {
+    const run = handler({ loadRoles: async () => ({ [session.id]: 'swag' }), callBridge: async () => { throw Error(error); } });
+    const result = await run(adminUnlink());
+    assert.equal(result.status, status); assert.deepEqual(await result.json(), { error });
+  }
+});
 test('bridge rejects unsigned, tampered, oversized and redirected responses', async () => {
   await assert.rejects(bridge('/v1/website/status', {}, { env, fetcher: async (_, init) => {
     assert.equal(init.redirect, 'error'); return Response.json({ linked: true });
