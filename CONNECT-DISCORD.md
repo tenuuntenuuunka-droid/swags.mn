@@ -1,25 +1,25 @@
 # Connect SWAG's website and Discord bot
 
-This update keeps the existing site at **https://swagcs3.netlify.app**. A purchased domain is unnecessary. The prepared bot bridge address is **https://swag-bot-production-a20f.up.railway.app**; private settings are supplied separately. Steam stays the website login; a member then connects their Discord account using the **top-right Discord icon**, **Profile → Discord**, or the profile menu. The top-right icon opens account linking instead of the server invite. The delivered `public/index.html` includes its Discord interface styles and scripts inline.
+Use the Netlify project where this website is deployed. A purchased domain is unnecessary. The prepared bot bridge address is **https://swag-bot-production-a20f.up.railway.app**; private settings are supplied separately. Steam stays the website login; a member then connects their Discord account using the **top-right Discord icon**, **Profile → Discord**, or the profile menu. The complete ZIP includes the account-link interface styles and scripts in `public/index.html`.
 
 The website owner assigns Admin, VIP, Boss or another approved role through the existing **Role Console**. The bot reads that approved list and grants the mapped Discord role to the linked member. Linking and owner-approved role sync are implemented. **QPay remains a demo**; there is no automatic payment confirmation or automatic expiry. Until a verified payment integration is configured, the owner must verify payments and assign/remove website roles manually. These changes do not grant Counter-Strike game-server permissions.
 
-## For the friend who manages Netlify
+## Netlify setup
 
-1. Extract this archive and open the directory containing `netlify.toml`, `package.json`, `public/`, and `netlify/`. Update the **existing swagcs3 project**, retaining its existing `staff`, profiles, skins, clans, and wars Blobs stores. Do not create a replacement site or clear the stores.
+1. Extract this archive and open the directory containing `netlify.toml`, `package.json`, `public/`, and `netlify/`. Updating an existing project retains its `staff`, profiles, skins, clans, and wars Blobs stores. A new project has separate variables and storage; see `NETLIFY-SETUP.md` before deploying.
 2. In Netlify's environment settings for **production Functions**, preserve the current `SESSION_SECRET`, `STEAM_API_KEY`, and all other existing settings. Set:
 
    | Name | Value |
    |---|---|
-   | `BASE_URL` | `https://swagcs3.netlify.app` |
+   | `BASE_URL` | This project's exact HTTPS address, without a path or trailing slash |
    | `DISCORD_CLIENT_ID` | `1559602636217651220` |
    | `DISCORD_CLIENT_SECRET` | The application's existing OAuth2 client secret, supplied privately by its owner |
-   | `DISCORD_BRIDGE_URL` | From the separate `PRIVATE-Netlify-connection.env` file |
-   | `WEBSITE_BRIDGE_SECRET` | From the same private file; must match Railway |
+   | `DISCORD_BRIDGE_URL` | The existing bot bridge HTTPS address above |
+   | `WEBSITE_BRIDGE_SECRET` | Supplied privately; must match the existing Railway value |
 
-   `DISCORD_CLIENT_SECRET` is **not** the bot token. The bot token stays on Railway. Keep private values in Netlify's server environment and out of the source repository, `public/`, browser code, and chat messages. Do not upload the separate private settings file as a public website asset.
+   `DISCORD_CLIENT_SECRET` is **not** the bot token. The bot token stays on Railway. Mark `DISCORD_CLIENT_SECRET`, `WEBSITE_BRIDGE_SECRET`, and `SESSION_SECRET` as secrets. The site address, client ID, and bridge address are public configuration and do not need the secret flag. Keep private values in Netlify's server environment and out of the source repository, `public/`, browser code, and chat messages. Do not upload private settings files as website assets.
 
-3. Deploy the complete project, **including its functions**, through the existing Git-connected Netlify build, or with the official CLI. A static folder drag-and-drop alone will not deploy this integration's server functions. With Node.js and npm installed:
+3. Deploy the complete project, **including its functions**, through Netlify's Git-connected build, the complete project ZIP upload, or the official CLI. Verify that the completed production build includes the `steam` function; uploading only `index.html` is insufficient. With Node.js and npm installed, the CLI alternative is:
 
    ```powershell
    npm install
@@ -29,19 +29,19 @@ The website owner assigns Admin, VIP, Boss or another approved role through the 
    npx netlify-cli deploy --build --prod
    ```
 
-   In `link`, select the existing **swagcs3** site. Review the deployment target before publishing. The `netlify.toml` already selects `public/` and `netlify/functions/`. Wait for the production build to finish after changing environment settings.
+   In `link`, select the intended existing Netlify project. Review the deployment target before publishing. The `netlify.toml` already selects `public/` and `netlify/functions/`. Wait for the production build to finish after changing environment settings. Preserve the Steam session secret so existing sign-ins remain valid.
 
 4. Confirm `/api/me` still recognizes a signed-in Steam user. In Profile → Discord, the Connect Discord button should become available. Signing in with Steam from scratch now uses a short-lived state cookie, so old in-progress Steam login tabs should be restarted.
 
 ## For the Discord application/server owner
 
-1. Open [the existing application's OAuth2 settings](https://discord.com/developers/applications/1559602636217651220/oauth2). Add this exact redirect URL and save:
+1. Open [the existing application's OAuth2 settings](https://discord.com/developers/applications/1559602636217651220/oauth2). Add this project's exact HTTPS address followed by `/auth/discord/callback` and save. For example, replace `your-project` with the real project name:
 
    ```text
-   https://swagcs3.netlify.app/auth/discord/callback
+   https://your-project.netlify.app/auth/discord/callback
    ```
 
-   Keep the bot private and retain its existing installation settings. Account linking requests only `identify`; it does not request a member's email, messages, or automatic server joining. Use the existing OAuth2 client secret for Netlify; there is no need to reset the bot token.
+   Keep the bot private and retain its existing installation settings. Account linking requests only `identify`; it does not request a member's email, messages, or automatic server joining. Use the OAuth2 client secret for Netlify; there is no need to reset the bot token. On Railway, set `WEBSITE_BASE_URL` to the same website address as Netlify's `BASE_URL`, preserving `WEBSITE_BRIDGE_SECRET`, and redeploy the bot when changing the address.
 
 2. In the original Discord server **1558730863208964137**, configure the matching existing Discord roles:
 
