@@ -96,14 +96,32 @@ test('role feed fails closed on storage failure and signs the error', async () =
   assert.equal(result.headers.get('X-Swag-Signature'), signature(env.WEBSITE_BRIDGE_SECRET, 'response',
     headers['X-Swag-Time'], headers['X-Swag-Nonce'], '/api/discord/roles', await result.text(), 503));
 });
-test('member refresh ignores attempted role injection and unlink requires CSRF', async () => {
+test('member refresh ignores attempted role injection', async () => {
   let args;
   const run = handler({ callBridge: async (...values) => { args = values; return {}; } });
   assert.equal((await run(post('/api/discord/sync'))).status, 202);
   assert.deepEqual(args, ['/v1/website/reconcile', {}]);
-  assert.equal((await run(post('/api/discord/unlink', { 'X-Swag-Csrf': 'wrong' }))).status, 403);
-  await run(post('/api/discord/unlink'));
-  assert.deepEqual(args, ['/v1/website/unlink', { steam_id: session.id }]);
+});
+
+test('website unlink requests are disabled without changing a saved link or calling the bot', async () => {
+  const calls = [], account = { discord_id: '123456789012345678', username: 'Alice', sync_state: 'synced' };
+  const run = handler({ callBridge: async (route, payload) => {
+    calls.push([route, payload]);
+    assert.equal(route, '/v1/website/status');
+    return { linked: true, account };
+  } });
+  for (const request of [get('/api/discord/unlink'), post('/api/discord/unlink'), post('/api/discord/unlink', { 'X-Swag-Csrf': 'wrong' }),
+    new Request(origin + '/api/discord/unlink', { method: 'DELETE' })]) {
+    const result = await run(request);
+    assert.equal(result.status, 403);
+    assert.deepEqual(await result.json(), { error: 'unlink_disabled' });
+  }
+  assert.equal(calls.length, 0);
+  const result = await (await run(get('/api/discord'))).json();
+  assert.equal(result.unlinkAllowed, false); assert.equal(result.linked, true);
+  assert.deepEqual(result.account, account);
+  assert.equal(calls.length, 1);
+  assert.equal((await handler({ readSession: () => null })(post('/api/discord/unlink'))).status, 401);
 });
 test('bridge rejects unsigned, tampered, oversized and redirected responses', async () => {
   await assert.rejects(bridge('/v1/website/status', {}, { env, fetcher: async (_, init) => {
