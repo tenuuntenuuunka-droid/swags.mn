@@ -66,7 +66,7 @@ export async function bridge(route, data, { env = process.env, fetcher = fetch }
       signature(secret, 'response', headers['X-Swag-Time'], headers['X-Swag-Nonce'], route, bytes, result.status))) throw new Error('bridge_unavailable');
   const payload = JSON.parse(bytes.toString());
   if (!result.ok) {
-    const allowed = ['steam_already_linked', 'discord_already_linked', 'role_not_manageable', 'discord_unavailable', 'oauth_replayed'];
+    const allowed = ['steam_already_linked', 'discord_already_linked', 'role_not_manageable', 'discord_unavailable', 'oauth_replayed', 'swag_only', 'self_unlink_disabled', 'link_changed', 'not_linked'];
     throw new Error(allowed.includes(payload.error) ? payload.error : 'bridge_unavailable');
   }
   return payload;
@@ -90,8 +90,7 @@ export function createDiscordIntegration({ readSession, loadRoles, env = process
     }
     const me = readSession(req);
     if (!me) return json(401, { error: 'not_logged_in' });
-    // Unlinking is disabled for every website account, including privileged roles.
-    // Keep the route blocked for older pages and direct requests; never call the bot.
+    // Self-service unlinking stays disabled, including for privileged accounts.
     if (route === '/api/discord/unlink') return json(403, { error: 'unlink_disabled' });
     if (route === '/api/discord' && req.method === 'GET') {
       const common = { configured: configured(), csrf: csrfToken(me, env), unlinkAllowed: false };
@@ -100,6 +99,25 @@ export function createDiscordIntegration({ readSession, loadRoles, env = process
       catch { return json(503, { ...common, error: 'bridge_unavailable' }); }
     }
     if (route !== '/auth/discord/callback' && (req.method !== 'POST' || !checkCsrf(req, me, env))) return json(403, { error: 'csrf' });
+    if (route === '/api/discord/admin-unlink') {
+      let roles;
+      try { roles = await loadRoles(); } catch { return json(503, { error: 'roles_unavailable' }); }
+      if (roles?.[me.id] !== 'swag') return json(403, { error: 'swag_only' });
+      const raw = await req.text();
+      if (raw.length > 1024) return json(413, { error: 'too_large' });
+      let body; try { body = JSON.parse(raw); } catch { return json(400, { error: 'bad_target' }); }
+      const target = body?.steam_id, expected = body?.discord_id;
+      if (typeof target !== 'string' || !/^\d{17}$/.test(target) || typeof expected !== 'string' || !/^\d{17,20}$/.test(expected)) return json(400, { error: 'bad_target' });
+      if (target === me.id) return json(403, { error: 'self_unlink_disabled' });
+      if (!configured()) return json(503, { error: 'not_configured' });
+      try {
+        const result = await call('/v1/website/unlink', { steam_id: target, discord_id: expected, actor_steam_id: me.id });
+        return json(200, { ok: true, linked: result.linked });
+      } catch (error) {
+        const status = ['swag_only', 'self_unlink_disabled'].includes(error.message) ? 403 : ['link_changed', 'not_linked'].includes(error.message) ? 409 : 503;
+        return json(status, { error: ['swag_only', 'self_unlink_disabled', 'link_changed', 'not_linked', 'role_not_manageable', 'discord_unavailable'].includes(error.message) ? error.message : 'bridge_unavailable' });
+      }
+    }
     if (!configured()) return json(503, { error: 'not_configured' });
     if (route === '/auth/discord') {
       const state = crypto.randomBytes(24).toString('hex'), verifier = crypto.randomBytes(48).toString('base64url');
