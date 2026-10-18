@@ -53,7 +53,7 @@ Linked Discord names also appear in the profile and account menu, clan connectio
    /website map website_role:boss role:@Boss
    ```
 
-   Choose the actual role from Discord's selector; names above are examples. Additional website roles supported for explicit mapping are `moderator`, `manager`, `founder`, `coowner`, and `owner`. No Discord role is mapped automatically by name. Ordinary managers can map only roles below their own highest role. Only the Discord server owner may map administrator/server-management roles or Owner/Co-Owner/Founder website roles. The bot needs Manage Roles and a higher role position than every target role.
+   Choose the actual role from Discord's selector; names above are examples. Additional website roles supported for explicit mapping are `moderator`, `manager`, `founder`, `coowner`, `owner`, and `swag`. No Discord role is mapped automatically by name. Ordinary managers can map only roles below their own highest role. Only the Discord server owner may map administrator/server-management roles or SWAG/Owner/Co-Owner/Founder website roles. The bot needs Manage Roles and a higher role position than every target role.
 
 3. Run `/website status` to review mappings. `/website unmap` stops granting a mapping and removes only grants created by this integration after a successful refresh. `/website sync` queues a refresh. Prefix examples: `?website`, `?website map vip @VIP`, `?website sync`.
 
