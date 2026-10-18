@@ -4,6 +4,8 @@ Use the Netlify project where this website is deployed. A purchased domain is un
 
 The website owner assigns Admin, VIP, Boss or another approved role through the existing **Role Console**. The bot reads that approved list and grants the mapped Discord role to the linked member. Linking and owner-approved role sync are implemented. **QPay remains a demo**; there is no automatic payment confirmation or automatic expiry. Until a verified payment integration is configured, the owner must verify payments and assign/remove website roles manually. These changes do not grant Counter-Strike game-server permissions.
 
+Linked Discord names also appear in the profile and account menu, clan connection status, clan members and join requests, staff cards, and leaderboard entries. These views read verified links from the bot. Clan and staff rosters use authenticated batches containing only public Discord IDs and display names; OAuth tokens and private sync records are not included. Unlinking refreshes the current account's visible identity immediately. Website Owner permissions are checked on the server using approved Steam IDs, independently of browser display state.
+
 ## Netlify setup
 
 1. Extract this archive and open the directory containing `netlify.toml`, `package.json`, `public/`, and `netlify/`. Updating an existing project retains its `staff`, profiles, skins, clans, and wars Blobs stores. A new project has separate variables and storage; see `NETLIFY-SETUP.md` before deploying.

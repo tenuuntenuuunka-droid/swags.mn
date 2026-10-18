@@ -24,6 +24,7 @@ npm test
 - Steam sign-in with a short-lived login state check.
 - Discord identity verification using OAuth authorization code flow, PKCE and Steam-bound encrypted state.
 - Account link/unlink and a role-refresh control; browser writes require CSRF checks.
+- Linked Discord identities in profiles, clan status and rosters, staff cards, account menus and leaderboards.
 - An authenticated role snapshot for the Railway bot; the bot token stays on Railway.
 - Owner-approved Admin/VIP/Boss and explicit additional role mappings.
 
