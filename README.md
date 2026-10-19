@@ -26,9 +26,10 @@ npm test
 - Account linking and a role-refresh control; browser writes require CSRF checks. Self-disconnect is disabled. Only SWAG can disconnect another member's linked Discord from that member's profile, with a confirmation and fresh server permission checks.
 - Linked Discord identities in profiles, clan status and rosters, staff cards, account menus and leaderboards.
 - [SWAG above Owner](WEBSITE-ROLES.md), with server-enforced authority and protected SWAG assignments.
+- [Admin/VIP/Boss role timers](ROLE-TIMERS.md), with Owner/SWAG editing, calendar months or permanent access, Staff since/Expires dates and automatic expiry.
 - An authenticated role snapshot for the Railway bot; the bot token stays on Railway.
 - Owner-approved Admin/VIP/Boss and explicit additional role mappings.
 
-Online payment verification and automatic subscription expiry are not enabled. Owners must verify payments and manage website roles manually until a verified QPay integration is configured. This does not grant Counter-Strike server permissions.
+Online payment verification is not enabled. Owners verify payments manually, then choose a role duration or permanent access. Timed role expiry works without QPay. This does not grant Counter-Strike server permissions.
 
 **[Download the final website ZIP](swag-discord-final.zip)**, or read **[START-HERE.txt](START-HERE.txt)**.

@@ -12,4 +12,5 @@ SWAG WEBSITE — FINAL DISCORD UPDATE
    and /website role mappings. Private credentials are not included in public code.
    Preserve the existing SESSION_SECRET and Netlify Blobs data.
 
-Owner approval is supported. QPay payment automation is not enabled.
+Owner approval and Admin/VIP/Boss expiry timers are supported. See ROLE-TIMERS.md.
+QPay payment automation is not enabled.
