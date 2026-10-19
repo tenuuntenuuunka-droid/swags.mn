@@ -1482,6 +1482,22 @@ body[data-current-slide="skinchanger"] .side-nav button[aria-current="true"] { b
 .tm-ctl select { max-width: 130px; padding: 4px 8px; border-radius: 8px; font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: #fff; background: rgba(5,8,16,.85); border: 1px solid color-mix(in srgb, var(--c) 60%, transparent); cursor: pointer; }
 .tm-ctl button { width: 26px; height: 26px; border-radius: 8px; cursor: pointer; color: #ff5a7a; background: rgba(255,90,122,.1); border: 1px solid rgba(255,90,122,.4); font-size: 12px; line-height: 1; transition: background .15s; }
 .tm-ctl button:hover { background: rgba(255,90,122,.3); }
+.tm-ctl { flex-wrap: wrap; }
+.tm-ctl button[data-time] { width: auto; padding: 0 9px; color: #ddd; background: rgba(255,255,255,.05); border-color: var(--line); }
+.role-timing { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 16px; width: 100%; font-family: var(--font-mono); }
+.role-timing > div { min-width: 0; padding: 4px 16px 4px 0; }
+.role-timing > div + div { padding-left: 16px; border-left: 1px solid rgba(255,255,255,.09); }
+.role-timing small { display: block; color: #777; font-size: 10px; font-weight: 700; letter-spacing: .16em; margin-bottom: 10px; }
+.role-timing strong { display: block; color: #bbb; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.role-timing.is-expired strong { color: #ff727c; }
+.pf-sec.role-period { padding: 22px; } .role-period .role-timing { margin: 0; }
+.role-period .btn { margin-top: 18px; }
+.role-time-dialog label { display: grid; gap: 8px; margin: 16px 0; font-size: 13px; color: #bbb; }
+.role-time-dialog input, .role-time-dialog select, .rc-duration { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px; color: #eee; background: #111018; border: 1px solid #4b385e; border-radius: 9px; font: inherit; color-scheme: dark; }
+.role-time-dialog .rt-actions { display: flex; gap: 10px; margin-top: 20px; }
+.rc-duration-wrap { grid-column: 1 / -1; display: grid; gap: 8px; max-width: 320px; color: #aaa; font-size: 12px; }
+.rc-duration-wrap[hidden] { display: none; }
+.tm-expired-list { margin: 22px 0; padding: 20px; border: 1px solid rgba(255,90,122,.3); border-radius: 14px; }
 .tm-lock { font: 600 11px var(--font-mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .tm-link { cursor: pointer; }
 .tm-link:focus-visible { outline: 2px solid var(--c); outline-offset: 6px; border-radius: 12px; }
@@ -2723,6 +2739,16 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   <p class="dc-note">Discord role нь website дээр Owner-оос олгосон эрхийн дагуу шинэчлэгдэнэ. Steam хаяг болон бусад Discord role-д өөрчлөлт орохгүй.</p>
 </dialog>
 
+<dialog id="roleTimeDlg" class="dc-dialog role-time-dialog" aria-labelledby="rtTitle">
+  <h3 id="rtTitle">Role хугацаа</h3>
+  <p id="rtMember" class="dc-intro"></p>
+  <label>Хугацаа<select id="rtDuration" aria-label="Role үргэлжлэх хугацаа"></select></label>
+  <label>Дуусах огноо · Улаанбаатарын цагаар<input id="rtExpiry" type="datetime-local"></label>
+  <label>Staff since · эхэлсэн огноо (мэдэгдэж байвал)<input id="rtSince" type="date"></label>
+  <p class="dc-note">Сарын сонголт нь хадгалсан мөчөөс тоологдоно. Ижил role-ын эхэлсэн огноог сунгалтын үед хадгална.</p>
+  <p id="rtMessage" class="dc-message" role="status" aria-live="polite"></p>
+  <div class="rt-actions"><button id="rtSave" class="btn" type="button">Хадгалах</button><button id="rtCancel" class="btn line" type="button">Болих</button></div>
+</dialog>
 <dialog id="steamDlg" class="sd" aria-labelledby="sdT">
   <button type="button" class="sd-x" id="steamCancel" aria-label="Close">&#10005;</button>
   <svg class="sd-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.253 0-2.265-1.014-2.265-2.265z"/></svg>
@@ -3063,6 +3089,25 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   }
   window.swagDiscordBadge = discordBadge;
   /* /Discord identity helpers */
+  /* Role timing helpers */
+  function roleLocalInput(value) { var n = Date.parse(value); return Number.isFinite(n) ? new Date(n + 28800000).toISOString().slice(0, 16) : ''; }
+  function roleTiming(term, now) {
+    if (!term) return '';
+    now = now == null ? Date.now() : now;
+    var expiry = term.expiresAt && Date.parse(term.expiresAt), expired = term.expired || (expiry && expiry <= now);
+    var since = term.sinceAt ? roleLocalInput(term.sinceAt).slice(0, 10) : '—';
+    var end = !expiry ? 'Permanent' : (expired ? 'Expired' : Math.ceil((expiry - now) / 86400000) + 'd left') + ' · ' + roleLocalInput(term.expiresAt).slice(0, 10);
+    return '<div class="role-timing' + (expired ? ' is-expired' : '') + '"><div><small>STAFF SINCE</small><strong>' + esc(since) + '</strong></div><div><small>EXPIRES</small><strong>' + esc(end) + '</strong></div></div>';
+  }
+  function roleDurationOptions(value, custom) {
+    var out = '';
+    for (var n = 1; n <= 12; n++) out += '<option value="' + n + '"' + (String(value) === String(n) ? ' selected' : '') + '>' + n + ' сар</option>';
+    out += '<option value="permanent"' + (value === 'permanent' ? ' selected' : '') + '>Permanent · Хугацаагүй</option>';
+    if (custom) out += '<option value="custom"' + (value === 'custom' ? ' selected' : '') + '>Тодорхой огноо сонгох</option>';
+    return out;
+  }
+  window.swagRoleTiming = roleTiming; window.swagRoleLocalInput = roleLocalInput; window.swagRoleDurationOptions = roleDurationOptions;
+  /* /Role timing helpers */
   function renderSteam() {
     var on = !!steamUser;
     $('steamBtn').hidden = on; $('profBtn').hidden = !on;
@@ -3200,7 +3245,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
       if (u && u.name) {
         var roleChanged = (u.staff || '') !== (steamUser.staff || '');
-        if (roleChanged || JSON.stringify(u.discord) !== JSON.stringify(steamUser.discord) || u.discord_status !== steamUser.discord_status) finishLogin(u);
+        if (roleChanged || JSON.stringify(u.roleTerm) !== JSON.stringify(steamUser.roleTerm) || JSON.stringify(u.discord) !== JSON.stringify(steamUser.discord) || u.discord_status !== steamUser.discord_status) finishLogin(u);
         if (roleChanged) toast(u.staff ? 'Танд ' + u.staff.toUpperCase() + ' role олгогдлоо' : 'Таны staff role хасагдлаа');
       }
     }).catch(function () {});
@@ -3271,6 +3316,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       if (a === 'ban') pfPick('banner'); else if (a === 'av') pfPick('avatar');
       else if (a === 'banx') pfReset('banner'); else if (a === 'avx') pfReset('avatar');
       else if (a === 'discord-unlink') disconnectProfileDiscord();
+      else if (a === 'role-time' && window.swagEditRoleTime) window.swagEditRoleTime(pfView || steamUser);
       else if (a === 'back') { var bk = pfView && pfView._from === 'staff' ? 'staff' : pfView && pfView._from === 'clan' ? 'clans' : 'leaderboard'; pfView = null; var li = ids.indexOf(bk); if (li > -1) go(li); }
     });
   })();
@@ -3319,6 +3365,9 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       '<span class="pf-chip">' + (st && st.last ? 'Сүүлд: ' + esc(st.last) : (rt ? 'Серверт тоглосон' : (own ? 'Серверт тоглоогүй' : 'Мэдээлэл алга'))) + '</span></div></div>' +
       '</div></div>' + (own ? '<p class="pf-note">Баннер, профайл зурагт PNG, JPG, WEBP болон GIF (4MB хүртэл) оруулж болно.</p>' : '');
     h += discordProfile(u.discord, own, u.discord_status);
+    if (u.roleTerm && window.swagRoleTiming) {
+      h += '<div class="pf-sec role-period"><h3>' + esc(u.roleTerm.role.toUpperCase()) + ' · Хугацаа</h3>' + window.swagRoleTiming(u.roleTerm) + (steamUser && ['swag', 'owner'].indexOf(steamUser.staff) > -1 && String(u.id) !== String(steamUser.id) ? '<button class="btn line" type="button" data-pf="role-time">Хугацаа өөрчлөх</button>' : '') + '</div>';
+    }
     if (!own && steamUser && steamUser.staff === 'swag' && String(u.id) !== String(steamUser.id) && /^\d{17}$/.test(u.id) && u.discord && /^\d{17,20}$/.test(u.discord.id)) {
       h += '<div class="pf-sec dc-admin"><h3>SWAG · Discord удирдах</h3><button class="btn line" type="button" data-pf="discord-unlink"' + (pfDiscordBusy ? ' disabled' : '') + '>' + (pfDiscordBusy ? 'Салгаж байна…' : 'Discord салгах') + '</button><p class="pf-note">Энэ гишүүний Discord холболт болон website-ээр олгосон Discord role-ууд хасагдана.</p></div>';
     }
@@ -3344,6 +3393,15 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     root.innerHTML = h;
   }
   function openProfile() { pfView = null; var i = ids.indexOf('profile'); if (i > -1) { renderProfilePage(); go(i); closeSide(); } }
+  document.addEventListener('swag-role-time', function (event) {
+    var id = event.detail && event.detail.id;
+    if (!pfView || String(pfView.id) !== String(id)) return;
+    var from = pfView._from;
+    fetch('/api/player?id=' + encodeURIComponent(id), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+      if (u && pfView && String(pfView.id) === String(id)) { pfView = Object.assign(u, { _from: from }); renderProfilePage(); }
+    }).catch(function () {});
+  });
+  setInterval(function () { if (!document.hidden && !$('profile').hidden) renderProfilePage(); }, 60000);
   function openPlayer(id, from) {
     if (!id) return;
     if (steamUser && steamUser.id === id) { openProfile(); return; }
@@ -4975,7 +5033,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   var DEMO = [['Owner One','owner'],['Founder One','founder'],['Co-Owner One','coowner'],['Manager One','manager'],['Admin One','admin'],['Moderator One','moderator'],['Boss One','boss'],['VIP One','vip']]
     .map(function (d, i) { return { id: 'demo' + i, name: d[0], avatar: '', role: d[1] }; });
   var data = { members: [], demo: false, loading: true }, filter = 'all', q = '';
-  var meU = null, isOwner = false, assignableRoles = [], lockedUsers = [], rcRole = 'moderator', rcMsg = null;
+  var meU = null, isOwner = false, assignableRoles = [], lockedUsers = [], expiredMembers = [], rcRole = 'moderator', rcMsg = null, timeEdit = null;
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function role(k) { return ROLES.filter(function (r) { return r.k === k; })[0]; }
@@ -4984,14 +5042,14 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     var r = role(m.role), ini = esc((m.name.replace(/[^\p{L}\p{N}]/gu, '').charAt(0) || '?').toUpperCase());
     return '<div class="tm-card' + (/^\d{17}$/.test(m.id) ? ' tm-link' : '') + '" data-pid="' + esc(m.id) + '" style="--c:' + r.c + '"' + (/^\d{17}$/.test(m.id) ? ' tabindex="0" role="button" aria-label="' + esc(m.name) + ' профайл харах"' : '') + '><div class="tm-av">' + ini +
       (m.avatar ? '<img src="' + esc(m.avatar) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') +
-      '</div><div class="tm-nm"><b title="' + esc(m.name) + '">' + esc(m.name) + '</b>' + (window.swagDiscordBadge ? window.swagDiscordBadge(m.discord) : '') + ctl(m) + '</div></div>';
+      '</div><div class="tm-nm"><b title="' + esc(m.name) + '">' + esc(m.name) + '</b>' + (window.swagDiscordBadge ? window.swagDiscordBadge(m.discord) : '') + (window.swagRoleTiming ? window.swagRoleTiming(m.roleTerm) : '') + ctl(m) + '</div></div>';
   }
   function ctl(m) {
     if (!isOwner || !/^\d{17}$/.test(m.id)) return '';
     if (lockedUsers.indexOf(m.id) > -1 || (meU && m.id === meU.id)) return '<div class="tm-ctl"><span class="tm-lock">🔒 ' + (meU && m.id === meU.id ? 'you' : 'locked') + '</span></div>';
     if (assignableRoles.indexOf(m.role) < 0) return '<div class="tm-ctl"><span class="tm-lock">🔒 ' + esc(m.role.toUpperCase()) + '</span></div>';
     return '<div class="tm-ctl" data-id="' + m.id + '"><select data-set aria-label="Role солих">' + ROLES.filter(function (r) { return assignableRoles.indexOf(r.k) > -1; }).map(function (r) {
-      return '<option value="' + r.k + '"' + (r.k === m.role ? ' selected' : '') + '>' + r.n + '</option>'; }).join('') + '</select><button type="button" data-rm title="Хасах" aria-label="Staff-аас хасах">✕</button></div>';
+      return '<option value="' + r.k + '"' + (r.k === m.role ? ' selected' : '') + '>' + r.n + '</option>'; }).join('') + '</select>' + (m.roleTerm ? '<button type="button" data-time="' + m.id + '">Хугацаа өөрчлөх</button>' : '') + '<button type="button" data-rm title="Хасах" aria-label="Staff-аас хасах">✕</button></div>';
   }
   function say(t, kind) { rcMsg = t ? { t: t, k: kind } : null; var el = $('rcMsg'); if (el) { el.textContent = t || ''; el.className = 'rc-msg ' + (kind || ''); } }
   var ERR = { not_logged_in: 'Steam-ээр нэвтэрнэ үү', owner_only: 'Зөвхөн SWAG эсвэл Owner role-той хүн өөрчилж чадна', bad_id: 'Steam ID буруу (17 оронтой тоо эсвэл steamcommunity.com/profiles/… холбоос)', bad_role: 'Role буруу', locked_owner: 'Энэ Owner-ийг зөвхөн SWAG өөрчилнө', locked_swag: 'Үндсэн SWAG хаяг хамгаалагдсан', swag_only: 'SWAG role-ыг зөвхөн SWAG удирдана', self: 'Өөрийн role-оо өөрчлөх боломжгүй', super_owner_only: 'Owner role-ыг SWAG эсвэл үндсэн Owner өөрчилнө', storage_unavailable: 'Хадгалалт (Netlify Blobs) ажиллахгүй байна' };
@@ -4999,6 +5057,51 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     return fetch('/api/staff' + (qs || ''), { method: method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Swag-Csrf': meU && meU.csrf || '' }, body: body ? JSON.stringify(body) : undefined })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(ERR[j.error] || j.error || ('HTTP ' + r.status)); return j; }); });
   }
+  Object.assign(ERR, { bad_duration: '1–12 сар эсвэл Permanent сонгоно уу.', bad_date: 'Огноо буруу байна.', expiry_in_past: 'Дуусах огноо ирээдүйд байх ёстой.', since_in_future: 'Эхэлсэн огноо ирээдүйд байж болохгүй.', not_timed_role: 'Зөвхөн Admin, VIP, Boss хугацаатай байна.', role_changed: 'Role өөрчлөгдсөн. Дахин нээгээд оролдоно уу.', time_changed: 'Хугацааг өөр хүн өөрчилсөн. Дахин нээгээд оролдоно уу.' });
+  var defaultMonths = { admin: 1, vip: 6, boss: 12 };
+  function isTimed(role) { return ['admin', 'vip', 'boss'].indexOf(role) > -1; }
+  function durationPreview() {
+    var value = $('rtDuration').value, input = $('rtExpiry');
+    input.disabled = value !== 'custom';
+    if (value === 'custom') return;
+    if (value === 'permanent') { input.value = ''; return; }
+    var date = new Date(Date.now() + 28800000), day = date.getUTCDate();
+    date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth() + Number(value));
+    var last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(day, last)); input.value = date.toISOString().slice(0, 16);
+  }
+  window.swagEditRoleTime = function (member, mode, selectedRole) {
+    if (!isOwner || !member || !/^\d{17}$/.test(member.id) || member.id === meU.id) return;
+    var r = selectedRole || member.role || (member.roleTerm && member.roleTerm.role) || member.staff;
+    if (!isTimed(r)) return;
+    var term = member.roleTerm, assign = mode === 'assign';
+    timeEdit = { id: member.id, role: r, method: assign ? 'POST' : 'PATCH', previousExpiresAt: term && term.expiresAt };
+    $('rtMember').textContent = member.name + ' · ' + r.toUpperCase() + ' · ' + member.id;
+    $('rtDuration').innerHTML = window.swagRoleDurationOptions(assign || (term && term.expired) ? defaultMonths[r] : term && term.expiresAt ? 'custom' : 'permanent', true);
+    $('rtExpiry').value = term && term.expiresAt ? window.swagRoleLocalInput(term.expiresAt) : '';
+    $('rtSince').value = !assign && term && term.sinceAt ? window.swagRoleLocalInput(term.sinceAt).slice(0, 10) : '';
+    $('rtMessage').textContent = ''; $('rtSave').disabled = false; durationPreview();
+    if (!$('roleTimeDlg').open) $('roleTimeDlg').showModal();
+  };
+  $('rtDuration').addEventListener('change', durationPreview);
+  $('roleTimeDlg').addEventListener('close', function () { render(); });
+  $('rtCancel').addEventListener('click', function () { $('roleTimeDlg').close(); render(); });
+  $('rtSave').addEventListener('click', function () {
+    if (!timeEdit) return;
+    var edit = Object.assign({}, timeEdit), body = { id: edit.id, role: edit.role, duration: $('rtDuration').value, sinceDate: $('rtSince').value };
+    if (body.duration === 'custom') body.expiresLocal = $('rtExpiry').value;
+    if (edit.method === 'PATCH') body.previousExpiresAt = edit.previousExpiresAt;
+    $('rtSave').disabled = true; $('rtMessage').textContent = 'Хадгалж байна…';
+    api(edit.method, body).then(function () {
+      $('roleTimeDlg').close(); say('✓ Хугацаа хадгалагдлаа', 'ok'); initOwner(); load();
+      document.dispatchEvent(new CustomEvent('swag-role-time', { detail: { id: edit.id } }));
+    }).catch(function (error) { $('rtMessage').textContent = error.message; }).then(function () { $('rtSave').disabled = false; });
+  });
+  document.addEventListener('click', function (event) {
+    var button = event.target.closest && event.target.closest('[data-time]'); if (!button) return;
+    var id = button.getAttribute('data-time'), member = data.members.concat(expiredMembers).filter(function (m) { return m.id === id; })[0];
+    if (member) window.swagEditRoleTime(member);
+  });
   function parseId(v) { v = String(v || '').trim(); var m = /(\d{17})/.exec(v); return m ? m[1] : ''; }
   function adminPanel() {
     var box = $('tmAdmin'); if (!box) return;
@@ -5008,10 +5111,12 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     box.setAttribute('data-ready', '1'); box.hidden = false;
     box.innerHTML = '<div class="rc-h"><i></i>Role Console · ' + (meU.staff === 'swag' ? 'SWAG' : 'Owner') + '</div><p class="rc-sub">Staff-д role өгөх, солих, хасах — шууд сайтаас. Steam ID эсвэл профайл холбоосоор.</p>' +
       '<form class="rc-form" id="rcForm" autocomplete="off"><input class="rc-in" id="rcId" placeholder="Steam ID эсвэл steamcommunity.com/profiles/7656119…" inputmode="numeric" aria-label="Steam ID">' +
-      '<button class="rc-go" id="rcGo" type="submit">Role өгөх</button><div class="rc-pills" id="rcPills"></div></form><p class="rc-msg" id="rcMsg" role="status"></p>';
+      '<button class="rc-go" id="rcGo" type="submit">Role өгөх</button><div class="rc-pills" id="rcPills"></div><label class="rc-duration-wrap" id="rcTiming" hidden>Хугацаа · хадгалсан мөчөөс<select id="rcDuration" class="rc-duration" aria-label="Шинэ role-ын хугацаа"></select></label></form><p class="rc-msg" id="rcMsg" role="status"></p>';
     function pills() {
       $('rcPills').innerHTML = ROLES.filter(function (r) { return assignableRoles.indexOf(r.k) > -1; }).map(function (r) {
         return '<button type="button" class="rc-pill" data-rc="' + r.k + '" style="--c:' + r.c + '" aria-pressed="' + (rcRole === r.k) + '">' + r.n + '</button>'; }).join('');
+      $('rcTiming').hidden = !isTimed(rcRole);
+      $('rcDuration').innerHTML = window.swagRoleDurationOptions(defaultMonths[rcRole] || 'permanent', false);
     }
     pills();
     $('rcPills').addEventListener('click', function (e) { var b = e.target.closest('.rc-pill'); if (!b) return; rcRole = b.getAttribute('data-rc'); pills(); });
@@ -5019,7 +5124,8 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       e.preventDefault(); var id = parseId($('rcId').value);
       if (!id) { say(ERR.bad_id, 'err'); return; }
       $('rcGo').disabled = true; say('Хадгалж байна…');
-      api('POST', { id: id, role: rcRole }).then(function () { say('✓ Role өгөгдлөө: ' + rcRole.toUpperCase(), 'ok'); $('rcId').value = ''; load(); })
+      var body = { id: id, role: rcRole }; if (isTimed(rcRole)) body.duration = $('rcDuration').value;
+      api('POST', body).then(function () { say('✓ Role өгөгдлөө: ' + rcRole.toUpperCase(), 'ok'); $('rcId').value = ''; initOwner(); load(); })
         .catch(function (x) { say(x.message, 'err'); }).then(function () { $('rcGo').disabled = false; });
     });
   }
@@ -5033,6 +5139,10 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
   document.addEventListener('change', function (e) {
     var sel = e.target.closest && e.target.closest('select[data-set]'); if (!sel) return;
     var c = sel.closest('.tm-ctl'), card = sel.closest('.tm-card'); card.classList.add('busy');
+    if (isTimed(sel.value)) {
+      var member = data.members.concat(expiredMembers).filter(function (m) { return m.id === c.getAttribute('data-id'); })[0];
+      card.classList.remove('busy'); window.swagEditRoleTime(member, 'assign', sel.value); return;
+    }
     api('POST', { id: c.getAttribute('data-id'), role: sel.value }).then(function () { say('✓ Role солигдлоо', 'ok'); load(); })
       .catch(function (x) { say(x.message, 'err'); card.classList.remove('busy'); load(); });
   });
@@ -5048,8 +5158,8 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
     fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
       meU = u; isOwner = !!u && ['swag', 'owner'].indexOf(u.staff) > -1;
       var bx = $('tmAdmin'); if (bx) bx.removeAttribute('data-ready');
-      if (!isOwner) { assignableRoles = []; lockedUsers = []; adminPanel(); render(); return; }
-      return api('GET').then(function (j) { assignableRoles = j.assignableRoles || []; lockedUsers = j.lockedUsers || []; }).catch(function () { isOwner = false; assignableRoles = []; lockedUsers = []; }).then(function () { adminPanel(); render(); });
+      if (!isOwner) { assignableRoles = []; lockedUsers = []; expiredMembers = []; adminPanel(); render(); return; }
+      return api('GET').then(function (j) { assignableRoles = j.assignableRoles || []; lockedUsers = j.lockedUsers || []; expiredMembers = j.expired || []; }).catch(function () { isOwner = false; assignableRoles = []; lockedUsers = []; expiredMembers = []; }).then(function () { adminPanel(); render(); });
     }).catch(function () {});
   }
   function render() {
@@ -5071,6 +5181,10 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       var z = SIZE[r.k] || [6, 64, 44, 20];
       html += '<section class="tm-sec" style="--c:' + r.c + ';--vw:' + z[0] + 'vw;--mx:' + z[1] + 'px;--av:' + z[2] + 'px;--nf:' + z[3] + 'px"><div class="tm-sh"><small>' + (n < 10 ? '0' : '') + n + '</small><b>' + r.n + '</b><em>' + list.length + (list.length > 1 ? ' MEMBERS' : ' MEMBER') + '</em></div><div class="tm-grid">' + list.map(card).join('') + '</div></section>';
     });
+    if (isOwner && expiredMembers.length && filter === 'all') {
+      var expired = expiredMembers.filter(function (m) { return !ql || m.name.toLowerCase().indexOf(ql) > -1; });
+      if (expired.length) html += '<section class="tm-expired-list" style="--c:#ff727c;--av:48px;--nf:20px"><h3>Expired roles · Сунгах боломжтой</h3><div class="tm-grid">' + expired.map(card).join('') + '</div></section>';
+    }
     $('tmList').innerHTML = html || '<div class="tm-empty">' + (data.loading ? '' : 'Хүн олдсонгүй.') + '</div>';
     var inp = $('tmQ'); if (inp && document.activeElement && document.activeElement.id === 'tmQ') { inp.focus(); }
   }
@@ -5086,6 +5200,7 @@ img[src^="data:image/webp"] { clip-path: inset(2% 2.4% 5% 1% round 7px); }
       if (!d.configured) { data = { members: DEMO, demo: true }; }
       else { data = { members: d.members || [], error: d.error }; }
       render();
+      if (isOwner) api('GET').then(function (j) { expiredMembers = j.expired || []; render(); }).catch(function () {});
     }).catch(function () { data = { members: DEMO, demo: true }; render(); });
   }
   document.addEventListener('swag-me', function () { initOwner(); load(); });
