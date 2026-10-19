@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createDiscordIntegration, bridge, csrfToken, checkCsrf, sealFlow, openFlow, flowCookie, cookie, equal } from '../lib/discord.mjs';
 import { linkedProfiles, discordFields } from '../lib/linked-profiles.mjs';
-import { STAFF_ROLES, isWebsiteAdmin, resolveStaff, staffAccess, staffChangeError, staffDocument } from '../lib/staff.mjs';
+import { STAFF_ROLES, TIMED_ROLES, DEFAULT_MONTHS, isWebsiteAdmin, staffState, staffAccess, changeStaff } from '../lib/staff.mjs';
 
 export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/admin-unlink', '/api/discord/sync', '/api/discord/roles'] };
 
@@ -73,32 +73,38 @@ const staffStore = async () => strongStore('staff');
 // Нэвтэрсэн хүн бүрийн нэр/зургийг хадгална — role авсан хүн "Steam 123456" биш жинхэнэ нэрээрээ харагдана
 async function saveProfile(p) { try { await (await strongStore('profiles')).setJSON(p.id, { name: p.name, avatar: p.avatar || '', profileUrl: p.profileUrl || '' }); } catch (e) { console.error('saveProfile', e.message); } }
 async function savedProfile(id) { try { return await (await strongStore('profiles')).get(id, { type: 'json' }); } catch { return null; } }
-async function loadStaff(strict = false) {
+async function readStaffState(strict = false) {
   const seed = seedStaff();
   let saved = null;
   try { saved = await (await staffStore()).get('all', { type: 'json' }); } catch (error) { if (strict) throw new Error('roles_unavailable'); saved = null; }
-  try { return resolveStaff(seed, saved); }
-  catch (error) { if (strict) throw error; return resolveStaff(seed, null); }
+  try { return staffState(seed, saved); }
+  catch (error) { if (strict) throw error; return staffState(seed, null); }
 }
+const loadStaff = async (strict = false) => (await readStaffState(strict)).roles;
 const superOwners = () => Object.keys(seedStaff()).filter(k => seedStaff()[k] === 'owner');
 // Every staff mutation is authorized using current server-owned roles, never session role claims.
 async function staffHandler(req, url) {
   const me = readCookie(req); if (!me) return json(401, { error: 'not_logged_in' });
-  let cur; try { cur = await loadStaff(true); } catch { return json(503, { error: 'storage_unavailable' }); }
+  let state; try { state = await readStaffState(true); } catch { return json(503, { error: 'storage_unavailable' }); }
+  const cur = state.roles;
   const seed = seedStaff(), access = staffAccess(seed, cur, me.id);
   if (!access.canManage) return json(403, { error: 'owner_only' });
-  if (req.method === 'GET') return json(200, { roles: STAFF_ROLES, superOwners: superOwners(), ...access });
+  if (req.method === 'GET') {
+    const expired = await Promise.all(Object.entries(state.terms).filter(([, term]) => term.expired).map(async ([id, roleTerm]) => {
+      const pr = await cachedProfile(id); return { id, name: pr.name, avatar: pr.avatar, role: roleTerm.role, roleTerm };
+    }));
+    return json(200, { roles: STAFF_ROLES, superOwners: superOwners(), timedRoles: TIMED_ROLES, defaultMonths: DEFAULT_MONTHS, expired, ...access });
+  }
   if (!checkCsrf(req, me)) return json(403, { error: 'csrf' });
   let store; try { store = await staffStore(); } catch { return json(501, { error: 'storage_unavailable' }); }
   const b = req.method === 'DELETE' ? { id: url.searchParams.get('id') } : await req.json().catch(() => ({}));
-  const id = String(b.id || '').trim();
-  const role = String(b.role || '').toLowerCase();
-  const error = staffChangeError(seed, cur, me.id, id, role, req.method);
-  if (error) return json(error === 'method' ? 405 : ['bad_id', 'bad_role'].includes(error) ? 400 : 403, { error });
-  const next = { ...cur };
-  if (req.method === 'DELETE') delete next[id];
-  else next[id] = role;
-  await store.setJSON('all', staffDocument(seed, next));
+  let next;
+  try { next = changeStaff(seed, state, me.id, b, req.method); }
+  catch (error) {
+    const bad = ['bad_id', 'bad_role', 'bad_date', 'bad_duration', 'since_in_future', 'expiry_in_past', 'not_timed_role'];
+    return json(error.message === 'method' ? 405 : ['role_changed', 'time_changed'].includes(error.message) ? 409 : bad.includes(error.message) ? 400 : 403, { error: error.message });
+  }
+  await store.setJSON('all', next);
   let discordSync = 'queued';
   try { await bridge('/v1/website/reconcile', {}); } catch { discordSync = 'pending'; }
   return json(200, { ok: true, discord_sync: discordSync });
@@ -278,8 +284,8 @@ export default async (req) => {
     if (url.pathname === '/api/me') {
       if (!process.env.SESSION_SECRET) return json(500, { error: 'SESSION_SECRET is not set (set it, then redeploy)' });
       const s = readCookie(req); if (!s) return json(401, { error: 'not_logged_in', hasCookie: /swag=/.test(req.headers.get('cookie') || '') });
-      const links = await linkedProfiles([s.id]);
-      return json(200, { id: s.id, name: s.name, avatar: s.avatar, profileUrl: s.profileUrl, ...(await ratingOf(s.id)), staff: (await loadStaff())[s.id] || '', csrf: csrfToken(s), ...discordFields(links, s.id) });
+      const links = await linkedProfiles([s.id]), state = await readStaffState();
+      return json(200, { id: s.id, name: s.name, avatar: s.avatar, profileUrl: s.profileUrl, ...(await ratingOf(s.id)), staff: state.roles[s.id] || '', roleTerm: state.terms[s.id] || null, csrf: csrfToken(s), ...discordFields(links, s.id) });
     }
     if (url.pathname === '/api/pfimg') {
       const kind = url.searchParams.get('kind'); if (kind !== 'banner' && kind !== 'avatar') return json(400, { error: 'bad_kind' });
@@ -312,20 +318,20 @@ export default async (req) => {
       return json(200, (await store.get(me.id, { type: 'json' })) || {});
     }
     if (url.pathname === '/api/team') {
-      const st = await loadStaff(), ids = Object.keys(st);
+      const state = await readStaffState(), st = state.roles, ids = Object.keys(st);
       const links = await linkedProfiles(ids);
-      const members = await Promise.all(ids.map(async id => { const pr = await cachedProfile(id); return { id, name: pr.name, avatar: pr.avatar, role: st[id], ...discordFields(links, id) }; }));
+      const members = await Promise.all(ids.map(async id => { const pr = await cachedProfile(id); return { id, name: pr.name, avatar: pr.avatar, role: st[id], roleTerm: state.terms[id] || null, ...discordFields(links, id) }; }));
       return json(200, { configured: true, members }, { 'Cache-Control': 'public, max-age=10' });
     }
     if (url.pathname === '/api/staff') return await staffHandler(req, url);
     if (url.pathname === '/api/player') {
       const id = url.searchParams.get('id') || ''; if (!/^\d{17}$/.test(id)) return json(400, { error: 'bad_id' });
-      const r = await ratingOf(id), stf = (await loadStaff())[id] || '';
+      const r = await ratingOf(id), state = await readStaffState(), stf = state.roles[id] || '', roleTerm = state.terms[id] || null;
       const links = await linkedProfiles([id]);
       const inClan = !r.rating && !stf && !links.profiles[id] && (await readClans()).some(c => (c.members || []).some(member => String(member.id) === id));
-      if (!r.rating && !stf && !links.profiles[id] && !inClan) return json(404, { error: 'not_found' });
+      if (!r.rating && !stf && !roleTerm && !links.profiles[id] && !inClan) return json(404, { error: 'not_found' });
       const pr = await cachedProfile(id);
-      return json(200, { id, name: pr.name, avatar: pr.avatar, profileUrl: pr.profileUrl, ...r, staff: stf, ...discordFields(links, id) }, { 'Cache-Control': 'public, max-age=10' });
+      return json(200, { id, name: pr.name, avatar: pr.avatar, profileUrl: pr.profileUrl, ...r, staff: stf, roleTerm, ...discordFields(links, id) }, { 'Cache-Control': 'no-store' });
     }
     if (url.pathname === '/api/leaderboard') {
       const all = (await loadAll()).filter(x => x.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 100);
