@@ -5,7 +5,7 @@ import { createDiscordIntegration, bridge, csrfToken, checkCsrf, sealFlow, openF
 import { linkedProfiles, discordFields } from '../lib/linked-profiles.mjs';
 import { STAFF_ROLES, TIMED_ROLES, DEFAULT_MONTHS, isWebsiteAdmin, staffState, staffAccess, changeStaff } from '../lib/staff.mjs';
 
-export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/admin-unlink', '/api/discord/sync', '/api/discord/roles'] };
+export const config = { path: ['/auth/steam', '/auth/steam/return', '/api/me', '/api/logout', '/api/skins', '/api/leaderboard', '/api/pfimg', '/api/player', '/api/team', '/api/staff', '/api/rating', '/api/clans', '/api/clans.js', '/api/wars', '/auth/discord', '/auth/discord/callback', '/api/discord', '/api/discord/unlink', '/api/discord/admin-unlink', '/api/discord/sync', '/api/discord/roles'] };
 
 const OPENID = 'https://steamcommunity.com/openid/login';
 const NS = 'http://specs.openid.net/auth/2.0';
@@ -48,7 +48,18 @@ function norm(id, v) {
     hs: nn(v.hs), shots: nn(v.shots), hits: nn(v.hits), damage: nn(v.damage ?? v.dmg), time: v.time || '', last: v.last || '' };
   return { id, rating: nn(v.rating ?? v.exp), stats: (stats.kills || stats.deaths || stats.wins || stats.losses) ? stats : null };
 }
+async function ratingOverrides() {
+  try { const o = await (await strongStore('ratings')).get('overrides', { type: 'json' }); return o && typeof o === 'object' ? o : {}; } catch { return {}; }
+}
 async function loadAll() {
+  const list = await loadBase(), ov = await ratingOverrides();
+  for (const [id, v] of Object.entries(ov)) {
+    const r = nn(v), x = list.find(y => y.id === id);
+    if (x) x.rating = r; else list.push({ id, rating: r, stats: null });
+  }
+  return list;
+}
+async function loadBase() {
   let d;
   if (process.env.RATINGS_URL) d = await (await fetch(process.env.RATINGS_URL)).json();
   else d = JSON.parse(readFileSync(new URL('./ratings.json', import.meta.url), 'utf8'));
@@ -71,7 +82,17 @@ function seedStaff() {
 const strongStore = async name => { const { getStore } = await import('@netlify/blobs'); return getStore({ name, consistency: 'strong' }); };
 const staffStore = async () => strongStore('staff');
 // Нэвтэрсэн хүн бүрийн нэр/зургийг хадгална — role авсан хүн "Steam 123456" биш жинхэнэ нэрээрээ харагдана
-async function saveProfile(p) { try { await (await strongStore('profiles')).setJSON(p.id, { name: p.name, avatar: p.avatar || '', profileUrl: p.profileUrl || '' }); } catch (e) { console.error('saveProfile', e.message); } }
+async function saveProfile(p) { if (!p || !p.avatar) return; try { await (await strongStore('profiles')).setJSON(p.id, { name: p.name, avatar: p.avatar || '', profileUrl: p.profileUrl || '' }); } catch (e) { console.error('saveProfile', e.message); } }
+// Steam-ээр нэвтэрсэн хүн бүр leaderboard-д Silver I (0 EXP)-аас эхлэн орно. Нэг хүн = нэг blob key.
+async function registerMember(id) {
+  try { const st = await strongStore('members'); if (!(await st.get(id))) await st.setJSON(id, { t: Date.now() }); }
+  catch (e) { console.error('registerMember', e.message); }
+}
+async function listMembers() {
+  try { const { blobs } = await (await strongStore('members')).list(); return blobs.map(b => b.key).filter(k => /^\d{17}$/.test(k)); }
+  catch { return []; }
+}
+async function isMember(id) { try { return !!(await (await strongStore('members')).get(id)); } catch { return false; } }
 async function savedProfile(id) { try { return await (await strongStore('profiles')).get(id, { type: 'json' }); } catch { return null; } }
 async function readStaffState(strict = false) {
   const seed = seedStaff();
@@ -83,6 +104,25 @@ async function readStaffState(strict = false) {
 const loadStaff = async (strict = false) => (await readStaffState(strict)).roles;
 const superOwners = () => Object.keys(seedStaff()).filter(k => seedStaff()[k] === 'owner');
 // Every staff mutation is authorized using current server-owned roles, never session role claims.
+// Owner-only: leaderboard дээр тоглогчид rank (EXP) өгөх. Blob 'ratings'/'overrides' нь ratings.json-ийг дарж бичнэ.
+async function ratingHandler(req) {
+  const me = readCookie(req); if (!me) return json(401, { error: 'not_logged_in' });
+  let state; try { state = await readStaffState(true); } catch { return json(503, { error: 'storage_unavailable' }); }
+  if (!isWebsiteAdmin(state.roles[me.id])) return json(403, { error: 'owner_only' });
+  if (!checkCsrf(req, me)) return json(403, { error: 'csrf' });
+  let store; try { store = await strongStore('ratings'); } catch { return json(501, { error: 'storage_unavailable' }); }
+  const b = await req.json().catch(() => ({}));
+  const id = String(b.id || ''); if (!/^\d{17}$/.test(id)) return json(400, { error: 'bad_id' });
+  const ov = await ratingOverrides();
+  if (req.method === 'DELETE') delete ov[id];
+  else if (req.method === 'POST') {
+    const exp = Math.round(Number(b.exp)); if (!Number.isFinite(exp) || exp < 0 || exp > 1000000) return json(400, { error: 'bad_exp' });
+    ov[id] = exp;
+  } else return json(405, { error: 'method' });
+  await store.setJSON('overrides', ov);
+  const pr = await cachedProfile(id);
+  return json(200, { ok: true, id, name: pr.name, exp: ov[id] ?? null });
+}
 async function staffHandler(req, url) {
   const me = readCookie(req); if (!me) return json(401, { error: 'not_logged_in' });
   let state; try { state = await readStaffState(true); } catch { return json(503, { error: 'storage_unavailable' }); }
@@ -120,17 +160,22 @@ async function cachedProfile(id) {
 async function profile(id) {
   const key = process.env.STEAM_API_KEY;
   const fallback = { id, name: 'Steam ' + id.slice(-6), avatar: '', profileUrl: `https://steamcommunity.com/profiles/${id}` };
-  try {
-    if (key) {
+  if (key) {
+    try {
       const r = await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${key}&steamids=${id}`);
       const p = (await r.json()).response.players[0];
-      if (p) return { id, name: p.personaname, avatar: p.avatarfull, profileUrl: p.profileurl };
-    } else {
-      const x = await (await fetch(`https://steamcommunity.com/profiles/${id}?xml=1`)).text();
+      if (p && p.personaname) return { id, name: p.personaname, avatar: p.avatarfull, profileUrl: p.profileurl };
+    } catch (e) { console.error('steam api', e.message); }
+  }
+  for (let i = 0; i < 2; i++) {
+    try {
+      const x = await (await fetch(`https://steamcommunity.com/profiles/${id}?xml=1&l=english`, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SWAGCS/1.0)' } })).text();
       const g = t => { const m = new RegExp(`<${t}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${t}>`).exec(x); return m && m[1].trim(); };
       if (g('steamID')) return { id, name: g('steamID'), avatar: g('avatarFull'), profileUrl: fallback.profileUrl };
-    }
-  } catch (e) { console.error(e); }
+    } catch (e) { console.error('steam xml', e.message); }
+  }
+  const sv = await savedProfile(id);
+  if (sv && sv.name) return { id, name: sv.name, avatar: sv.avatar || '', profileUrl: sv.profileUrl || fallback.profileUrl };
   return fallback;
 }
 
@@ -278,12 +323,14 @@ export default async (req) => {
       const id = await verify(url, base);
       if (!id) return redirect('/?login=error&why=verify');
       if (!process.env.SESSION_SECRET) return redirect('/?login=error&why=nosecret');
-      const pr = await profile(id); await saveProfile(pr);
+      const pr = await profile(id); await saveProfile(pr); await registerMember(id);
       return redirect('/?login=ok', { 'Set-Cookie': cookieHdr(makeCookie({ ...pr, exp: Date.now() + 30 * 864e5 }), 30 * 86400) });
     }
     if (url.pathname === '/api/me') {
       if (!process.env.SESSION_SECRET) return json(500, { error: 'SESSION_SECRET is not set (set it, then redeploy)' });
       const s = readCookie(req); if (!s) return json(401, { error: 'not_logged_in', hasCookie: /swag=/.test(req.headers.get('cookie') || '') });
+      if (!s.avatar) { const fp = await cachedProfile(s.id); if (fp && fp.avatar) { s.name = fp.name; s.avatar = fp.avatar; s.profileUrl = fp.profileUrl || s.profileUrl; } } // cookie-д нэр хоосон/placeholder үлдсэн бол шинэчилнэ
+      await registerMember(s.id); // өмнө нэвтэрсэн хүмүүс ч leaderboard-д орно
       const links = await linkedProfiles([s.id]), state = await readStaffState();
       return json(200, { id: s.id, name: s.name, avatar: s.avatar, profileUrl: s.profileUrl, ...(await ratingOf(s.id)), staff: state.roles[s.id] || '', roleTerm: state.terms[s.id] || null, csrf: csrfToken(s), ...discordFields(links, s.id) });
     }
@@ -324,17 +371,20 @@ export default async (req) => {
       return json(200, { configured: true, members }, { 'Cache-Control': 'public, max-age=10' });
     }
     if (url.pathname === '/api/staff') return await staffHandler(req, url);
+    if (url.pathname === '/api/rating') return await ratingHandler(req);
     if (url.pathname === '/api/player') {
       const id = url.searchParams.get('id') || ''; if (!/^\d{17}$/.test(id)) return json(400, { error: 'bad_id' });
       const r = await ratingOf(id), state = await readStaffState(), stf = state.roles[id] || '', roleTerm = state.terms[id] || null;
       const links = await linkedProfiles([id]);
       const inClan = !r.rating && !stf && !links.profiles[id] && (await readClans()).some(c => (c.members || []).some(member => String(member.id) === id));
-      if (!r.rating && !stf && !roleTerm && !links.profiles[id] && !inClan) return json(404, { error: 'not_found' });
+      if (!r.rating && !stf && !roleTerm && !links.profiles[id] && !inClan && !(await isMember(id))) return json(404, { error: 'not_found' });
       const pr = await cachedProfile(id);
       return json(200, { id, name: pr.name, avatar: pr.avatar, profileUrl: pr.profileUrl, ...r, staff: stf, roleTerm, ...discordFields(links, id) }, { 'Cache-Control': 'no-store' });
     }
     if (url.pathname === '/api/leaderboard') {
-      const all = (await loadAll()).filter(x => x.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 100);
+      const rated = (await loadAll()).filter(x => x.rating > 0), seen = new Set(rated.map(x => x.id));
+      const fresh = (await listMembers()).filter(id => !seen.has(id)).map(id => ({ id, rating: 0, stats: null }));
+      const all = rated.sort((a, b) => b.rating - a.rating).concat(fresh).slice(0, 100);
       const links = await linkedProfiles(all.map(player => player.id));
       const out = await Promise.all(all.map(async x => {
         const pr = await cachedProfile(x.id), st = x.stats || {};
