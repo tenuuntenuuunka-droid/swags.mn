@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
+// Rank helpers live in index.html's big closure; every logged-in player now has a rank (Silver I at 0 EXP).
+const rankStubs = { tierOf: () => ({ c: '#9aa3ad' }), describe: () => ({ name: 'Silver I', pct: 0, next: '', nx: null }), rankImgs: () => '', pfK: () => '', pfRing: () => '' };
+
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const helpers = html.split('/* Discord identity helpers */')[1].split('/* /Discord identity helpers */')[0];
 const profile = html.slice(html.indexOf('  function renderProfilePage()'), html.indexOf('  function openProfile()'));
@@ -13,7 +16,7 @@ const account = { id: '123456789012345678', username: 'V12' };
 test('own and public profiles display linked Discord instead of a generic connect prompt', () => {
   const root = { style: { setProperty() {} }, innerHTML: '' };
   const person = { id: '76561199487127340', name: 'Steam test', staff: 'owner', discord: account };
-  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: null, steamUser: person, pfCustom: {} });
+  const context = vm.createContext({ ...rankStubs, esc, window: {}, $: () => root, pfView: null, steamUser: person, pfCustom: {} });
   vm.runInContext(helpers + profile + '\nrenderProfilePage();', context);
   assert.match(root.innerHTML, /Discord · V12/);
   assert.match(root.innerHTML, /https:\/\/discord.com\/users\/123456789012345678/);
@@ -29,7 +32,7 @@ test('own and public profiles display linked Discord instead of a generic connec
 test('only SWAG sees disconnect on another linked profile, never on its own profile', () => {
   const root = { style: { setProperty() {} }, innerHTML: '' };
   const target = { id: '76561190000000001', name: 'Other member', staff: 'vip', discord: account };
-  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: target,
+  const context = vm.createContext({ ...rankStubs, esc, window: {}, $: () => root, pfView: target,
     steamUser: { id: '76561199845627878', staff: 'swag' }, pfCustom: {}, pfDiscordBusy: false });
   vm.runInContext(helpers + profile + '\nrenderProfilePage();', context);
   assert.match(root.innerHTML, /data-pf="discord-unlink"/);
@@ -103,7 +106,7 @@ test('SWAG renders above Owner and Owner controls cannot edit or assign SWAG', (
 test('SWAG profile badge and clan administration inherit Owner capabilities', () => {
   const root = { style: { setProperty() {} }, innerHTML: '' };
   const person = { id: '76561199845627878', name: 'SWAG member', staff: 'swag', discord: account };
-  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: null, steamUser: person, pfCustom: {} });
+  const context = vm.createContext({ ...rankStubs, esc, window: {}, $: () => root, pfView: null, steamUser: person, pfCustom: {} });
   vm.runInContext(helpers + profile + '\nrenderProfilePage();', context);
   assert.match(root.innerHTML, /★ SWAG/);
   root.style = {};
@@ -141,7 +144,7 @@ test('clan prerequisites and account menu follow live linked, unlinked and unava
     }
     return elements[id];
   }
-  const context = vm.createContext({ $, esc, steamUser: { id: '76561199487127340', name: 'Steam test', staff: 'owner', discord: account, discord_status: 'linked' },
+  const context = vm.createContext({ ...rankStubs, $, esc, steamUser: { id: '76561199487127340', name: 'Steam test', staff: 'owner', discord: account, discord_status: 'linked' },
     setAv() {}, closePop() {}, renderRankMe() {}, renderProfilePage() {} });
   vm.runInContext(steam + '\nrenderSteam();', context);
   assert.equal($('ccDiscord').className, 'ok');

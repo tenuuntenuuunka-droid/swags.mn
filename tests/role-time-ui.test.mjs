@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
+// Rank helpers live in index.html's big closure; every logged-in player now has a rank (Silver I at 0 EXP).
+const rankStubs = { tierOf: () => ({ c: '#9aa3ad' }), describe: () => ({ name: 'Silver I', pct: 0, next: '', nx: null }), rankImgs: () => '', pfK: () => '', pfRing: () => '' };
+
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const helpers = html.split('/* Role timing helpers */')[1].split('/* /Role timing helpers */')[0];
 const profile = html.slice(html.indexOf('  function renderProfilePage()'), html.indexOf('  function openProfile()'));
@@ -26,7 +29,7 @@ test('timing display matches the supplied labels, local dates, countdown and per
 test('public profiles show role dates but only Owner and SWAG see the time editor', () => {
   const root = { style: { setProperty() {} }, innerHTML: '' };
   const target = { id: '76561190000000001', name: 'VIP member', staff: 'vip', roleTerm: term, discord: null };
-  const context = vm.createContext({ esc, window: {}, $: () => root, pfView: target, steamUser: { id: '76561199487127340', staff: 'owner' }, pfCustom: {} });
+  const context = vm.createContext({ ...rankStubs, esc, window: {}, $: () => root, pfView: target, steamUser: { id: '76561199487127340', staff: 'owner' }, pfCustom: {} });
   vm.runInContext(helpers + discordHelpers + profile + '\nrenderProfilePage();', context);
   assert.match(root.innerHTML, /STAFF SINCE/); assert.match(root.innerHTML, /data-pf="role-time"/);
   context.steamUser.staff = 'swag'; vm.runInContext('renderProfilePage();', context);

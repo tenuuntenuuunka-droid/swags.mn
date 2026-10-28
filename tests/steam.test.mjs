@@ -65,7 +65,7 @@ test('verified Steam callback creates a session recognized by api/me', async t =
       assert.equal(options.body.get('openid.mode'), 'check_authentication');
       return new Response('is_valid:true\n');
     }
-    assert.equal(url, `https://steamcommunity.com/profiles/${steamId}?xml=1`);
+    assert.equal(url, `https://steamcommunity.com/profiles/${steamId}?xml=1&l=english`);
     return new Response('<profile><steamID><![CDATA[SWAG Test]]></steamID><avatarFull>https://example.com/avatar.png</avatarFull></profile>');
   });
   const { steam, cookie } = await begin();
@@ -94,4 +94,10 @@ test('callbacks without the login cookie or Steam verification cannot sign in', 
   assert.equal(unverified.headers.get('location'), '/?login=error&why=verify');
   assert.equal(calls, 1);
   assert.equal(unverified.headers.get('set-cookie'), null);
+});
+
+test('rating admin endpoint rejects anonymous callers', async t => {
+  settings(t);
+  const r = await handler(new Request(origin + '/api/rating', { method: 'POST', body: '{}' }));
+  assert.equal(r.status, 401);
 });
