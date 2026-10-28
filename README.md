@@ -1,35 +1,13 @@
-# SWAG CS2 website
+# SWAGCS website update
 
-SWAG website source with Steam sign-in and Discord account linking.
+This package updates the existing website design and retains Steam sign-in, Discord account linking, linked identities in clans and profiles, website-to-Discord role synchronization, role timers, and SWAG-only administrative disconnect controls.
 
-The **top-right Discord icon** opens **Connect Discord**. Its interface, styles and browser scripts are included in `public/index.html`. Once the server settings are configured, members can link their Discord account to their signed-in Steam profile and receive explicitly mapped, owner-approved Discord roles from the existing SWAG bot.
+Deploy to the existing Netlify project to retain its environment settings and Netlify Blobs records. Upload this complete ZIP through that project's Deploys page. Do not create a replacement project or reset the data stores.
 
-## Deploy the source
+Keep the existing Discord callback and bot bridge configuration. Private secrets belong in hosting environment variables, never in the ZIP or browser HTML. Run `npm test` for the integration checks.
 
-`netlify.toml` publishes `public/` and builds the functions in `netlify/functions/`. For a new Netlify project, follow **[NETLIFY-SETUP.md](NETLIFY-SETUP.md)**: configure its public `BASE_URL` and a private `SESSION_SECRET` available to production Functions, then redeploy. A new project does not inherit another site's variables or stored data. When updating an existing project, retain its Netlify Blobs stores and Steam session secret. The ZIP files are downloadable copies of the source.
+The uploaded additional Owner seed is excluded; the existing seed and stored Owner/SWAG assignments are preserved. Existing account links, clans, role timers and role mappings remain in their current stores.
 
-Follow **[CONNECT-DISCORD.md](CONNECT-DISCORD.md)** for the exact Discord callback URL, server environment settings and `/website map` commands. `.env.example` contains names and blank placeholders only. Configure real credentials in the hosting service, never in `index.html` or Git.
+Owner-approved roles and timers work with the existing bot. Online payment verification remains manual. Read CONNECT-DISCORD.md, ROLE-TIMERS.md and WEBSITE-ROLES.md for the controls.
 
-## Preview and checks
-
-Open `public/index.html` to preview the website. Real account linking and role updates use the hosted server functions and bot bridge. The legacy `server.js` provides basic local Steam support; use Netlify's development workflow for the complete function-based site.
-
-```sh
-npm install
-npm test
-```
-
-## Included
-
-- Steam sign-in with a short-lived login state check.
-- Discord identity verification using OAuth authorization code flow, PKCE and Steam-bound encrypted state.
-- Account linking and a role-refresh control; browser writes require CSRF checks. Self-disconnect is disabled. Only SWAG can disconnect another member's linked Discord from that member's profile, with a confirmation and fresh server permission checks.
-- Linked Discord identities in profiles, clan status and rosters, staff cards, account menus and leaderboards.
-- [SWAG above Owner](WEBSITE-ROLES.md), with server-enforced authority and protected SWAG assignments.
-- [Admin/VIP/Boss role timers](ROLE-TIMERS.md), with Owner/SWAG editing, calendar months or permanent access, Staff since/Expires dates and automatic expiry.
-- An authenticated role snapshot for the Railway bot; the bot token stays on Railway.
-- Owner-approved Admin/VIP/Boss and explicit additional role mappings.
-
-Online payment verification is not enabled. Owners verify payments manually, then choose a role duration or permanent access. Timed role expiry works without QPay. This does not grant Counter-Strike server permissions.
-
-**[Download the final website ZIP](swag-discord-final.zip)**, or read **[START-HERE.txt](START-HERE.txt)**.
+[Download the complete updated website ZIP](swag-discord-final.zip).
